@@ -9,6 +9,14 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
+<<<<<<< Updated upstream
     "verbatimModuleSyntax": true
+=======
+    "verbatimModuleSyntax": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true
+>>>>>>> Stashed changes
   }
 }
