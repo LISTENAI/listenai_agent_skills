@@ -55,7 +55,7 @@ For advanced manual runtime checks, the packaged resource-manager CLI entrypoint
 - `.github/workflows/ci.yml` - the GitHub Actions baseline for install, typecheck, test, and build.
 - `packages/skill-logic-analyzer/README.md` - canonical host-facing guidance for the logic-analyzer package.
 - `packages/skill-logic-analyzer/SKILL.md` - the packaged skill descriptor shipped to Claude Code and Codex installs.
-- `tests/` - repo-level integration and end-to-end proofs that exercise assembled package boundaries.
+- `integration/` - repo-level integration, end-to-end, and script-contract proofs for assembled package boundaries.
 
 ## Repository focus right now
 

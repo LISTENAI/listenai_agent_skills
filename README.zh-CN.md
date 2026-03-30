@@ -55,7 +55,7 @@ pnpm run verify:s07
 - `.github/workflows/ci.yml` - GitHub Actions 中用于 install、typecheck、test 和 build 的基线工作流。
 - `packages/skill-logic-analyzer/README.md` - logic-analyzer package 面向 host 的权威说明。
 - `packages/skill-logic-analyzer/SKILL.md` - 随 Claude Code 与 Codex 安装一起分发的 packaged skill descriptor。
-- `tests/` - 用来证明跨 package 装配结果的仓库级 integration / end-to-end 测试。
+- `integration/` - 用来证明跨 package 装配结果的仓库级 integration、end-to-end 与脚本契约测试。
 
 ## 当前仓库的重点
 

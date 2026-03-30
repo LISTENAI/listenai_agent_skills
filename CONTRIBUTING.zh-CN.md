@@ -56,6 +56,10 @@ pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --
 
 这样你就能获得一个真实的 HTTP surface 用于手动检查，而不必另外发明一个开发入口。
 
+## Repo-level integration 目录
+
+根目录下的 `integration/` 目录专门保留给必须依赖整个 workspace 装配边界的证明。跨 package 的 HTTP 流程、多进程分配检查，以及根脚本契约测试应放在这里；package 内部行为仍应留在各自 package-owned 的测试文件中。
+
 ## Deeper diagnostics
 
 基础贡献流程应当止步于 install、typecheck、test 和 build。如果标准路径通过后还需要更重的后续诊断，请明确运行现有的根级脚本：

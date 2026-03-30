@@ -56,6 +56,10 @@ pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --
 
 That gives you a real HTTP surface for manual checks without inventing a separate development entrypoint.
 
+## Repo-level integration directory
+
+The root `integration/` directory is reserved for repo-level proofs that need the assembled workspace boundary rather than a single package scope. Keep cross-package HTTP flows, multi-process allocation checks, and root script-contract tests there; package-internal behavior should stay in package-owned test files.
+
 ## Deeper diagnostics
 
 The baseline contribution flow should stop at install, typecheck, test, and build. If you need heavier follow-up diagnostics after the standard path passes, use the existing root scripts explicitly:
