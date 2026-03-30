@@ -3,20 +3,22 @@ declare module "vitest" {
     toMatchTypeOf<U>(): void;
   }
 
-  export type TestEach = <T>(cases: readonly T[]) => (
+  type Hook = (...args: any[]) => any;
+  type TestCase<T = unknown> = (value: T) => unknown;
+  type Each = <T>(cases: readonly T[]) => (
     name: string,
-    fn: (item: T) => any,
+    fn: TestCase<T>,
     timeout?: number
-  ) => any;
-
-  export interface TestFunction {
-    (...args: any[]): any;
-    each: TestEach;
-  }
+  ) => unknown;
 
   export const describe: (...args: any[]) => any;
-  export const it: TestFunction;
-  export const afterEach: (...args: any[]) => any;
   export const expect: any;
   export const expectTypeOf: <T = unknown>(value?: T) => TypeExpectation<T>;
+  export const beforeEach: Hook;
+  export const afterEach: Hook;
+  export const beforeAll: Hook;
+  export const afterAll: Hook;
+  export const vi: any;
+  export const it: ((...args: any[]) => any) & { each: Each };
+  export const test: ((...args: any[]) => any) & { each: Each };
 }
