@@ -21,7 +21,7 @@ The repository uses pnpm workspaces with two top-level ownership boundaries:
 - `share/contracts` - the `@listenai/contracts` package, which holds the shared resource-manager contracts consumed across the workspace.
 - `share/resource-client` - the `@listenai/resource-client` package, which re-exports the shared contracts plus the `HttpResourceManager` client for calling the resource-manager HTTP API.
 
-The root `src/index.ts` is a thin compatibility layer that re-exports workspace-owned public APIs. It remains available for existing repo-local consumers, but package-owned entrypoints under `packages/` and `share/` are the authoritative surfaces to copy into external hosts.
+Use the package-owned entrypoints under `packages/` and `share/` as the authoritative surfaces to copy into external hosts. The repository root no longer carries its own runtime compatibility barrel.
 
 ## Local bootstrap and standard verification
 
@@ -55,7 +55,7 @@ For advanced manual runtime checks, the packaged resource-manager CLI entrypoint
 - `.github/workflows/ci.yml` - the GitHub Actions baseline for install, typecheck, test, and build.
 - `packages/skill-logic-analyzer/README.md` - canonical host-facing guidance for the logic-analyzer package.
 - `packages/skill-logic-analyzer/SKILL.md` - the packaged skill descriptor shipped to Claude Code and Codex installs.
-- `src/index.ts` - the remaining root compatibility barrel for repo-local consumers.
+- `tests/` - repo-level integration and end-to-end proofs that exercise assembled package boundaries.
 
 ## Repository focus right now
 

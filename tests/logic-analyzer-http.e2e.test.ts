@@ -7,11 +7,11 @@ import {
   createResourceManager,
   createServer,
 } from "@listenai/resource-manager";
+import { HttpResourceManager } from "@listenai/resource-client";
 import {
-  HttpResourceManager,
   createGenericLogicAnalyzerSkill,
   createLogicAnalyzerSkill,
-} from "../src/index.js";
+} from "@listenai/skill-logic-analyzer";
 
 const connectedAt = "2026-03-26T00:00:00.000Z";
 const allocatedAt = "2026-03-26T00:01:00.000Z";

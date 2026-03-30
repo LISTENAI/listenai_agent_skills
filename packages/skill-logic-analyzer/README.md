@@ -2,7 +2,7 @@
 
 This package is the canonical home of the logic-analyzer host assets and runtime surface. Hosts should consume the package-root exports from `@listenai/skill-logic-analyzer` and resolve the shipped docs through this package's metadata contract instead of treating the monorepo root as the source of truth.
 
-If you are browsing the repository, start with this package's `README.md` and `SKILL.md`. The root `src/index.ts` barrel remains available as a thin compatibility layer for existing repo-local consumers, but new host integrations should document and import the package-owned surface first.
+If you are browsing the repository, start with this package's `README.md` and `SKILL.md`. New host integrations should document and import the package-owned surface directly.
 
 ## Canonical package-owned asset contract
 
@@ -64,7 +64,7 @@ import {
 } from "@listenai/skill-logic-analyzer";
 ```
 
-The root `src/index.ts` barrel is only a compatibility shim for monorepo consumers. Do not use it as the main host-facing import path.
+Do not add a repo-root re-export or deep-import internal modules; use the package root as the main host-facing import path.
 
 ## Runtime surface
 
@@ -167,10 +167,6 @@ if (result.ok) {
   });
 }
 ```
-
-## Compatibility note for repo consumers
-
-The monorepo root still exposes `src/index.ts` as a thin compatibility barrel that re-exports `@listenai/skill-logic-analyzer`. Keep that path available for older repo-local callers, but document and teach the package import path first so later installer work copies the package-owned contract rather than the repository layout.
 
 ## Verification
 

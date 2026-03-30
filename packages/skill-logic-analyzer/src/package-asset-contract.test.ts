@@ -107,16 +107,16 @@ describe("skill package asset contract", () => {
 
     expect(packageReadme).toContain("canonical home of the logic-analyzer host assets");
     expect(packageReadme).toContain('from "@listenai/skill-logic-analyzer"');
-    expect(packageReadme).toContain("root `src/index.ts` barrel remains available as a thin compatibility layer");
+    expect(packageReadme).toContain("document and import the package-owned surface directly");
     expect(packageReadme).not.toContain(`./${legacySkillDir}/README.md`);
 
     expect(packageSkill).toContain("authoritative host-facing assets");
     expect(packageSkill).toContain("@listenai/skill-logic-analyzer");
-    expect(packageSkill).toContain("repo-root <code>src/index.ts</code> compatibility barrel");
+    expect(packageSkill).toContain("treat the package-owned documentation and exports as the source of truth");
     expect(packageSkill).not.toContain(`${legacySkillDir}/`);
 
     expect(rootReadme).toContain("packages/skill-logic-analyzer/README.md");
-    expect(rootReadme).toContain("src/index.ts");
+    expect(rootReadme).toContain("repo-level integration and end-to-end proofs");
     expect(rootReadme).not.toContain(`./${legacySkillDir}/README.md`);
   });
 
