@@ -1,6 +1,6 @@
 # Contributing
 
-English: [`CONTRIBUTING.md`](CONTRIBUTING.md)。默认入口仍为英文版；如需查看英文原文，请阅读该文件。
+<h4 align="right"><a href="CONTRIBUTING.md">English</a> | <strong>简体中文</strong></h4>
 
 本文档说明 ListenAI monorepo 的贡献者启动流程、本地验证方式，以及仓库特定的诊断路径。它会刻意保持比根 README 更聚焦；根 README 仍然是默认的英文仓库导览入口。
 

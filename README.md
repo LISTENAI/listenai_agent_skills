@@ -1,6 +1,6 @@
 # ListenAI Agent Skills
 
-English is the default entrypoint for this repository. Chinese readers can use [README.zh-CN.md](README.zh-CN.md).
+<h4 align="right"><strong>English</strong> | <a href="README.zh-CN.md">简体中文</a></h4>
 
 ListenAI Agent Skills is a pnpm workspace for reusable embedded-debugging agent capabilities. The repository packages a resource-manager HTTP service, the shared contracts that define its requests and records, an HTTP client for that manager, and a logic-analyzer skill package that can be exercised from the repo itself.
 

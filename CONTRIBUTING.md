@@ -1,6 +1,6 @@
 # Contributing
 
-中文文档：[`CONTRIBUTING.zh-CN.md`](CONTRIBUTING.zh-CN.md)。默认入口仍为英文版；如需查看中文对应内容，请阅读该文件。
+<h4 align="right"><strong>English</strong> | <a href="CONTRIBUTING.zh-CN.md">简体中文</a></h4>
 
 This document covers contributor bootstrap, local verification, and repo-specific diagnostics for the ListenAI monorepo. It intentionally stays narrower than the root README, which remains the default English repository orientation and entrypoint.
 

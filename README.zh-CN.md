@@ -1,6 +1,6 @@
 # ListenAI Agent Skills
 
-中文文档：`README.zh-CN.md`。默认入口仍为英文版；如需查看英文原文，请阅读 [README.md](README.md)。
+<h4 align="right"><a href="README.md">English</a> | <strong>简体中文</strong></h4>
 
 ListenAI Agent Skills 是一个 pnpm workspace，用于承载可复用的嵌入式调试代理能力。这个仓库打包了一个 resource-manager HTTP 服务、定义其请求与记录的共享 contracts、该 manager 的 HTTP client，以及一个可直接在仓库内验证的 logic-analyzer skill package。
 
