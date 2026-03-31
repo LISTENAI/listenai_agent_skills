@@ -1,8 +1,102 @@
+import type { InventorySnapshot } from "@listenai/contracts";
 import { describe, expect, it } from "vitest";
 import { createResourceManager } from "../resource-manager.js";
 import { FakeDeviceProvider } from "../testing/fake-device-provider.js";
 import { createApp } from "./app.js";
 import { LeaseManager } from "./lease-manager.js";
+
+const refreshedAt = "2026-03-26T09:00:00.000Z";
+
+const dslogicSnapshot: InventorySnapshot = {
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  refreshedAt,
+  devices: [
+    {
+      deviceId: "logic-ready",
+      label: "DSLogic Plus Ready",
+      capabilityType: "logic-analyzer",
+      connectionState: "connected",
+      allocationState: "free",
+      ownerSkillId: null,
+      lastSeenAt: refreshedAt,
+      updatedAt: refreshedAt,
+      readiness: "ready",
+      diagnostics: [],
+      providerKind: "dslogic",
+      backendKind: "dsview",
+      dslogic: {
+        family: "dslogic",
+        model: "dslogic-plus",
+        modelDisplayName: "DSLogic Plus",
+        variant: "classic",
+        usbVendorId: "2a0e",
+        usbProductId: "0001"
+      }
+    },
+    {
+      deviceId: "logic-unsupported",
+      label: "DSLogic V421/Pango",
+      capabilityType: "logic-analyzer",
+      connectionState: "connected",
+      allocationState: "free",
+      ownerSkillId: null,
+      lastSeenAt: refreshedAt,
+      updatedAt: refreshedAt,
+      readiness: "unsupported",
+      diagnostics: [
+        {
+          code: "device-unsupported-variant",
+          severity: "error",
+          target: "device",
+          message: "Variant V421/Pango is not supported.",
+          deviceId: "logic-unsupported",
+          backendKind: "dsview"
+        }
+      ],
+      providerKind: "dslogic",
+      backendKind: "dsview",
+      dslogic: {
+        family: "dslogic",
+        model: "dslogic-plus",
+        modelDisplayName: "DSLogic Plus",
+        variant: "v421-pango",
+        usbVendorId: "2a0e",
+        usbProductId: "0030"
+      }
+    }
+  ],
+  backendReadiness: [
+    {
+      platform: "macos",
+      backendKind: "dsview",
+      readiness: "missing",
+      executablePath: null,
+      version: null,
+      checkedAt: refreshedAt,
+      diagnostics: [
+        {
+          code: "backend-missing-executable",
+          severity: "error",
+          target: "backend",
+          message: "DSView was not found on PATH.",
+          platform: "macos",
+          backendKind: "dsview"
+        }
+      ]
+    }
+  ],
+  diagnostics: [
+    {
+      code: "backend-missing-executable",
+      severity: "error",
+      target: "backend",
+      message: "DSView was not found on PATH.",
+      platform: "macos",
+      backendKind: "dsview"
+    }
+  ]
+};
 
 describe("Hono app routes", () => {
   it("GET /health returns 200 with status and timestamp", async () => {
@@ -31,30 +125,61 @@ describe("Hono app routes", () => {
     expect(body).toEqual([]);
   });
 
-  it("POST /refresh returns device list", async () => {
-    const provider = new FakeDeviceProvider([
-      {
-        deviceId: "dev1",
-        label: "Device 1",
-        capabilityType: "audio",
-        lastSeenAt: "2026-03-26T09:00:00.000Z"
-      }
-    ]);
-    const manager = createResourceManager(provider);
+  it("GET /inventory returns backend readiness and device diagnostics intact", async () => {
+    const provider = new FakeDeviceProvider(dslogicSnapshot);
+    const manager = createResourceManager(provider, { now: () => refreshedAt });
+    await manager.refreshInventorySnapshot();
+    const leaseManager = new LeaseManager();
+    const app = createApp(manager, leaseManager);
+
+    const res = await app.request("/inventory");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual(dslogicSnapshot);
+  });
+
+  it("POST /inventory/refresh returns the full snapshot without collapsing metadata", async () => {
+    const provider = new FakeDeviceProvider(dslogicSnapshot);
+    const manager = createResourceManager(provider, { now: () => refreshedAt });
+    const leaseManager = new LeaseManager();
+    const app = createApp(manager, leaseManager);
+
+    const res = await app.request("/inventory/refresh", { method: "POST" });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual(dslogicSnapshot);
+  });
+
+  it("POST /refresh keeps compatibility fields on device rows derived from the snapshot", async () => {
+    const provider = new FakeDeviceProvider(dslogicSnapshot);
+    const manager = createResourceManager(provider, { now: () => refreshedAt });
     const leaseManager = new LeaseManager();
     const app = createApp(manager, leaseManager);
 
     const res = await app.request("/refresh", { method: "POST" });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toHaveLength(1);
-    expect(body[0]).toMatchObject({
-      deviceId: "dev1",
-      label: "Device 1",
-      capabilityType: "audio",
-      connectionState: "connected",
-      allocationState: "free"
+    expect(body).toEqual(dslogicSnapshot.devices);
+  });
+
+  it("GET /devices returns device rows from backend-only snapshots without fabricating entries", async () => {
+    const provider = new FakeDeviceProvider({
+      providerKind: "dslogic",
+      backendKind: "dsview",
+      refreshedAt,
+      devices: [],
+      backendReadiness: dslogicSnapshot.backendReadiness,
+      diagnostics: dslogicSnapshot.diagnostics
     });
+    const manager = createResourceManager(provider, { now: () => refreshedAt });
+    await manager.refreshInventorySnapshot();
+    const leaseManager = new LeaseManager();
+    const app = createApp(manager, leaseManager);
+
+    const res = await app.request("/devices");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual([]);
   });
 
   it("POST /allocate succeeds with 200 and includes leaseId", async () => {
@@ -63,7 +188,7 @@ describe("Hono app routes", () => {
         deviceId: "dev1",
         label: "Device 1",
         capabilityType: "audio",
-        lastSeenAt: "2026-03-26T09:00:00.000Z"
+        lastSeenAt: refreshedAt
       }
     ]);
     const manager = createResourceManager(provider);
@@ -96,7 +221,7 @@ describe("Hono app routes", () => {
         deviceId: "dev1",
         label: "Device 1",
         capabilityType: "audio",
-        lastSeenAt: "2026-03-26T09:00:00.000Z"
+        lastSeenAt: refreshedAt
       }
     ]);
     const manager = createResourceManager(provider);
@@ -128,7 +253,7 @@ describe("Hono app routes", () => {
         deviceId: "dev1",
         label: "Device 1",
         capabilityType: "audio",
-        lastSeenAt: "2026-03-26T09:00:00.000Z"
+        lastSeenAt: refreshedAt
       }
     ]);
     const manager = createResourceManager(provider);
@@ -183,7 +308,7 @@ describe("Hono app routes", () => {
         deviceId: "dev1",
         label: "Device 1",
         capabilityType: "audio",
-        lastSeenAt: "2026-03-26T09:00:00.000Z"
+        lastSeenAt: refreshedAt
       }
     ]);
     const manager = createResourceManager(provider);
@@ -223,7 +348,7 @@ describe("Hono app routes", () => {
         deviceId: "dev1",
         label: "Device 1",
         capabilityType: "audio",
-        lastSeenAt: "2026-03-26T09:00:00.000Z"
+        lastSeenAt: refreshedAt
       }
     ]);
     const manager = createResourceManager(provider);

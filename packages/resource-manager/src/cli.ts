@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import { parseArgs } from "node:util";
-import { InMemoryResourceManager } from "./resource-manager.js";
-import { createServer } from "./server/server.js";
-import { LeaseManager } from "./server/lease-manager.js";
-import { FakeDeviceProvider } from "./testing/fake-device-provider.js";
+import { parseArgs } from "node:util"
+import { InMemoryResourceManager } from "./resource-manager.js"
+import { createServer } from "./server/server.js"
+import { LeaseManager } from "./server/lease-manager.js"
+import { createDeviceProvider } from "./dslogic/provider-factory.js"
 
 async function main() {
   const { values } = parseArgs({
@@ -18,35 +18,40 @@ async function main() {
         type: "string",
         short: "h",
         default: "127.0.0.1"
+      },
+      provider: {
+        type: "string",
+        default: process.env.RESOURCE_MANAGER_PROVIDER ?? "dslogic"
       }
     }
-  });
+  })
 
-  const port = parseInt(values.port || "7600", 10);
-  const host = values.host || "127.0.0.1";
+  const port = parseInt(values.port || "7600", 10)
+  const host = values.host || "127.0.0.1"
+  const providerKind = values.provider === "fake" ? "fake" : "dslogic"
 
-  const provider = new FakeDeviceProvider();
-  const manager = new InMemoryResourceManager(provider);
-  const leaseManager = new LeaseManager();
+  const provider = createDeviceProvider({ providerKind })
+  const manager = new InMemoryResourceManager(provider)
+  const leaseManager = new LeaseManager()
 
-  const { start, stop } = createServer({ port, host, manager, leaseManager });
+  const { start, stop } = createServer({ port, host, manager, leaseManager })
 
-  await start();
+  await start()
 
   process.on("SIGINT", async () => {
-    console.log("SIGINT received, stopping server...");
-    stop();
-    process.exit(0);
-  });
+    console.log("SIGINT received, stopping server...")
+    stop()
+    process.exit(0)
+  })
 
   process.on("SIGTERM", async () => {
-    console.log("SIGTERM received, stopping server...");
-    stop();
-    process.exit(0);
-  });
+    console.log("SIGTERM received, stopping server...")
+    stop()
+    process.exit(0)
+  })
 }
 
 main().catch((error) => {
-  console.error("Server failed to start:", error);
-  process.exit(1);
-});
+  console.error("Server failed to start:", error)
+  process.exit(1)
+})

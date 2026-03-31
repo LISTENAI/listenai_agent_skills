@@ -2,16 +2,26 @@ import type {
   AllocationRequest,
   AllocationResult,
   DeviceRecord,
+  InventoryDiagnostic,
+  InventorySnapshot,
+  LiveCaptureFailure,
+  LiveCaptureRequest,
+  LiveCaptureResult,
   ReleaseRequest,
   ReleaseResult,
-  ResourceManager
+  SnapshotResourceManager
 } from "@listenai/contracts";
-import type { DeviceProvider, DiscoveredDevice } from "./device-provider.js";
+import { captureDslogicLive } from "./dslogic/live-capture.js";
+import type {
+  DslogicLiveCaptureRunner
+} from "./dslogic/live-capture.js";
+import type { DeviceProvider } from "./device-provider.js";
 
-export type { ResourceManager } from "@listenai/contracts";
+export type { ResourceManager, SnapshotResourceManager } from "@listenai/contracts";
 
 export interface ResourceManagerOptions {
   now?: () => string;
+  liveCaptureRunner?: DslogicLiveCaptureRunner;
 }
 
 interface AllocationStateSnapshot {
@@ -19,82 +29,154 @@ interface AllocationStateSnapshot {
   allocatedAt: string;
 }
 
-const cloneRecord = (record: DeviceRecord): DeviceRecord => ({ ...record });
+const EMPTY_SNAPSHOT: InventorySnapshot = {
+  providerKind: "fake",
+  backendKind: "fake",
+  refreshedAt: "1970-01-01T00:00:00.000Z",
+  devices: [],
+  backendReadiness: [],
+  diagnostics: []
+};
+
+const buildAuthoritativeSessionFailure = (
+  request: LiveCaptureRequest,
+  message: string,
+  details: readonly string[]
+): LiveCaptureFailure => ({
+  ok: false,
+  reason: "capture-failed",
+  kind: "unsupported-runtime",
+  message,
+  session: request.session,
+  requestedAt: request.requestedAt,
+  artifactSummary: null,
+  diagnostics: {
+    phase: "validate-session",
+    providerKind: request.session.device.providerKind ?? null,
+    backendKind: request.session.device.backendKind ?? null,
+    executablePath: null,
+    command: [],
+    timeoutMs: request.timeoutMs ?? null,
+    exitCode: null,
+    signal: null,
+    stdout: null,
+    stderr: null,
+    details,
+    diagnostics: request.session.device.diagnostics ?? []
+  }
+});
+
+const cloneDiagnostic = (
+  diagnostic: InventoryDiagnostic
+): InventoryDiagnostic => ({ ...diagnostic });
+
+const cloneRecord = (record: DeviceRecord): DeviceRecord => ({
+  ...record,
+  diagnostics: record.diagnostics?.map(cloneDiagnostic),
+  dslogic: record.dslogic ? { ...record.dslogic } : record.dslogic
+});
+
+const cloneSnapshot = (snapshot: InventorySnapshot): InventorySnapshot => ({
+  ...snapshot,
+  devices: snapshot.devices.map(cloneRecord),
+  backendReadiness: snapshot.backendReadiness.map((record) => ({
+    ...record,
+    diagnostics: record.diagnostics.map(cloneDiagnostic)
+  })),
+  diagnostics: snapshot.diagnostics.map(cloneDiagnostic)
+});
 
 const sortDevices = (devices: Iterable<DeviceRecord>): DeviceRecord[] =>
   Array.from(devices, cloneRecord).sort((left, right) =>
     left.deviceId.localeCompare(right.deviceId)
   );
 
-const createRecordFromDiscovery = (
-  discovered: DiscoveredDevice,
+const setAllocationState = (
+  record: DeviceRecord,
+  allocation: AllocationStateSnapshot | undefined,
   updatedAt: string,
-  allocation?: AllocationStateSnapshot
+  connectionState: DeviceRecord["connectionState"] = record.connectionState
 ): DeviceRecord => ({
-  deviceId: discovered.deviceId,
-  label: discovered.label,
-  capabilityType: discovered.capabilityType,
-  connectionState: "connected",
+  ...cloneRecord(record),
+  connectionState,
   allocationState: allocation ? "allocated" : "free",
   ownerSkillId: allocation?.ownerSkillId ?? null,
-  lastSeenAt: discovered.lastSeenAt,
   updatedAt
 });
 
-export class InMemoryResourceManager implements ResourceManager {
+const createDisconnectedAllocatedRecord = (
+  record: DeviceRecord,
+  allocation: AllocationStateSnapshot,
+  updatedAt: string
+): DeviceRecord =>
+  setAllocationState(record, allocation, updatedAt, "disconnected");
+
+export class InMemoryResourceManager implements SnapshotResourceManager {
   readonly #provider: DeviceProvider;
   readonly #now: () => string;
-  readonly #inventory = new Map<string, DeviceRecord>();
+  readonly #liveCaptureRunner?: DslogicLiveCaptureRunner;
   readonly #allocations = new Map<string, AllocationStateSnapshot>();
+  #snapshot: InventorySnapshot = cloneSnapshot(EMPTY_SNAPSHOT);
 
   constructor(provider: DeviceProvider, options: ResourceManagerOptions = {}) {
     this.#provider = provider;
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#liveCaptureRunner = options.liveCaptureRunner;
   }
 
   async refreshInventory(): Promise<readonly DeviceRecord[]> {
-    const updatedAt = this.#now();
-    const connectedDevices = await this.#provider.listConnectedDevices();
-    const seenDeviceIds = new Set<string>();
+    const snapshot = await this.refreshInventorySnapshot();
+    return sortDevices(snapshot.devices);
+  }
 
-    for (const discovered of connectedDevices) {
-      seenDeviceIds.add(discovered.deviceId);
+  async refreshInventorySnapshot(): Promise<InventorySnapshot> {
+    const providerSnapshot = cloneSnapshot(await this.#provider.listInventorySnapshot());
+    const updatedAt = this.#now();
+    const nextDevices = new Map<string, DeviceRecord>();
+
+    for (const discovered of providerSnapshot.devices) {
       const allocation = this.#allocations.get(discovered.deviceId);
-      this.#inventory.set(
+      nextDevices.set(
         discovered.deviceId,
-        createRecordFromDiscovery(discovered, updatedAt, allocation)
+        setAllocationState(discovered, allocation, updatedAt)
       );
     }
 
-    for (const [deviceId, record] of this.#inventory) {
-      if (seenDeviceIds.has(deviceId)) {
+    for (const [deviceId, allocation] of this.#allocations) {
+      if (nextDevices.has(deviceId)) {
         continue;
       }
 
-      const allocation = this.#allocations.get(deviceId);
-      if (!allocation) {
-        this.#inventory.delete(deviceId);
+      const previousRecord = this.#findStoredDevice(deviceId);
+      if (!previousRecord) {
         continue;
       }
 
-      this.#inventory.set(deviceId, {
-        ...record,
-        connectionState: "disconnected",
-        allocationState: "allocated",
-        ownerSkillId: allocation.ownerSkillId,
-        updatedAt
-      });
+      nextDevices.set(
+        deviceId,
+        createDisconnectedAllocatedRecord(previousRecord, allocation, updatedAt)
+      );
     }
 
-    return this.listDevices();
+    this.#snapshot = {
+      ...providerSnapshot,
+      refreshedAt: updatedAt,
+      devices: Array.from(nextDevices.values())
+    };
+
+    return cloneSnapshot(this.#snapshot);
   }
 
   async listDevices(): Promise<readonly DeviceRecord[]> {
-    return sortDevices(this.#inventory.values());
+    return sortDevices(this.#snapshot.devices);
+  }
+
+  async getInventorySnapshot(): Promise<InventorySnapshot> {
+    return cloneSnapshot(this.#snapshot);
   }
 
   async allocateDevice(request: AllocationRequest): Promise<AllocationResult> {
-    const device = this.#inventory.get(request.deviceId);
+    const device = this.#findStoredDevice(request.deviceId);
     if (!device) {
       return {
         ok: false,
@@ -136,7 +218,7 @@ export class InMemoryResourceManager implements ResourceManager {
     }
 
     const updatedDevice: DeviceRecord = {
-      ...device,
+      ...cloneRecord(device),
       allocationState: "allocated",
       ownerSkillId: request.ownerSkillId,
       updatedAt: request.requestedAt
@@ -146,7 +228,7 @@ export class InMemoryResourceManager implements ResourceManager {
       ownerSkillId: request.ownerSkillId,
       allocatedAt: request.requestedAt
     });
-    this.#inventory.set(request.deviceId, updatedDevice);
+    this.#setStoredDevice(updatedDevice);
 
     return {
       ok: true,
@@ -155,7 +237,7 @@ export class InMemoryResourceManager implements ResourceManager {
   }
 
   async releaseDevice(request: ReleaseRequest): Promise<ReleaseResult> {
-    const device = this.#inventory.get(request.deviceId);
+    const device = this.#findStoredDevice(request.deviceId);
     if (!device) {
       return {
         ok: false,
@@ -190,7 +272,7 @@ export class InMemoryResourceManager implements ResourceManager {
     }
 
     const releasedDevice: DeviceRecord = {
-      ...device,
+      ...cloneRecord(device),
       allocationState: "free",
       ownerSkillId: null,
       updatedAt: request.releasedAt
@@ -199,9 +281,9 @@ export class InMemoryResourceManager implements ResourceManager {
     this.#allocations.delete(request.deviceId);
 
     if (releasedDevice.connectionState === "disconnected") {
-      this.#inventory.delete(request.deviceId);
+      this.#deleteStoredDevice(request.deviceId);
     } else {
-      this.#inventory.set(request.deviceId, releasedDevice);
+      this.#setStoredDevice(releasedDevice);
     }
 
     return {
@@ -209,9 +291,83 @@ export class InMemoryResourceManager implements ResourceManager {
       device: cloneRecord(releasedDevice)
     };
   }
+
+  async liveCapture(request: LiveCaptureRequest): Promise<LiveCaptureResult> {
+    const authoritativeDevice = this.#findStoredDevice(request.session.deviceId);
+    if (!authoritativeDevice) {
+      return buildAuthoritativeSessionFailure(
+        request,
+        `Cannot capture from unknown device ${request.session.deviceId}.`,
+        [
+          `Device ${request.session.deviceId} is not present in authoritative inventory.`,
+          "Accepted sessions must target a device that is still visible to the resource manager."
+        ]
+      );
+    }
+
+    if (
+      authoritativeDevice.allocationState !== "allocated" ||
+      authoritativeDevice.ownerSkillId !== request.session.ownerSkillId
+    ) {
+      return buildAuthoritativeSessionFailure(
+        request,
+        `Cannot capture from device ${request.session.deviceId} for owner ${request.session.ownerSkillId}.`,
+        [
+          `Authoritative allocation state is ${authoritativeDevice.allocationState}.`,
+          `Authoritative owner is ${authoritativeDevice.ownerSkillId ?? "unowned"}.`,
+          "Live capture requests must use the currently allocated owner for the accepted session."
+        ]
+      );
+    }
+
+    if (!this.#liveCaptureRunner) {
+      return buildAuthoritativeSessionFailure(
+        request,
+        "Live capture runner is not configured for the resource manager.",
+        [
+          "Provide ResourceManagerOptions.liveCaptureRunner when constructing the in-memory manager."
+        ]
+      );
+    }
+
+    return captureDslogicLive(
+      {
+        ...request,
+        session: {
+          ...request.session,
+          device: cloneRecord(authoritativeDevice)
+        }
+      },
+      {
+        runner: this.#liveCaptureRunner
+      }
+    );
+  }
+
+  #findStoredDevice(deviceId: string): DeviceRecord | undefined {
+    return this.#snapshot.devices.find((record) => record.deviceId === deviceId);
+  }
+
+  #setStoredDevice(record: DeviceRecord): void {
+    const nextDevices = this.#snapshot.devices.filter(
+      (candidate) => candidate.deviceId !== record.deviceId
+    );
+    nextDevices.push(cloneRecord(record));
+    this.#snapshot = {
+      ...this.#snapshot,
+      devices: nextDevices
+    };
+  }
+
+  #deleteStoredDevice(deviceId: string): void {
+    this.#snapshot = {
+      ...this.#snapshot,
+      devices: this.#snapshot.devices.filter((record) => record.deviceId !== deviceId)
+    };
+  }
 }
 
 export const createResourceManager = (
   provider: DeviceProvider,
   options?: ResourceManagerOptions
-): ResourceManager => new InMemoryResourceManager(provider, options);
+): SnapshotResourceManager => new InMemoryResourceManager(provider, options);

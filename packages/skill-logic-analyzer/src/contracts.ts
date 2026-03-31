@@ -1,8 +1,22 @@
 import type {
   AllocationFailure,
+  BackendReadinessRecord,
+  BackendReadinessState,
+  DeviceReadinessState,
   DeviceRecord,
+  InventoryBackendKind,
+  InventoryDiagnostic,
+  InventoryProviderKind,
+  LiveCaptureFailure,
   ReleaseFailure
 } from "@listenai/contracts";
+import type {
+  CaptureArtifactSummary,
+  IncompatibleSessionCaptureFailure,
+  LoadCaptureResult,
+  UnreadableCaptureInputFailure,
+  UnsupportedCaptureAdapterFailure
+} from "./capture-contracts.js";
 
 export const VALIDATION_ISSUE_CODES = [
   "required",
@@ -14,6 +28,7 @@ export type ValidationIssueCode = (typeof VALIDATION_ISSUE_CODES)[number];
 
 export const LOGIC_ANALYZER_START_FAILURE_REASONS = [
   "invalid-request",
+  "constraint-rejected",
   "allocation-failed"
 ] as const;
 export type LogicAnalyzerStartFailureReason =
@@ -90,6 +105,58 @@ export interface LogicAnalyzerValidationIssue {
   message: string;
 }
 
+export const LOGIC_ANALYZER_CONSTRAINT_ISSUE_CODES = [
+  "device-not-found",
+  "backend-not-ready",
+  "device-not-ready",
+  "unsupported-device",
+  "missing-dslogic-identity",
+  "empty-channel-selection",
+  "duplicate-channel-selection",
+  "channel-count-exceeds-device-limit",
+  "sample-rate-exceeds-device-limit"
+] as const;
+export type LogicAnalyzerConstraintIssueCode =
+  (typeof LOGIC_ANALYZER_CONSTRAINT_ISSUE_CODES)[number];
+
+export interface LogicAnalyzerConstraintIssue {
+  path: string;
+  code: LogicAnalyzerConstraintIssueCode;
+  message: string;
+}
+
+export interface LogicAnalyzerSessionConstraintReport {
+  request: {
+    deviceId: string;
+    requestedChannelIds: readonly string[];
+    requestedChannelCount: number;
+    distinctChannelCount: number;
+    sampleRateHz: number;
+  };
+  device: DeviceRecord | null;
+  evaluatedDeviceReadiness: DeviceReadinessState | "missing";
+  deviceDiagnostics: readonly InventoryDiagnostic[];
+  backendReadiness: readonly BackendReadinessRecord[];
+  evaluatedBackendReadiness: BackendReadinessState | "missing";
+  snapshotDiagnostics: readonly InventoryDiagnostic[];
+  issues: readonly LogicAnalyzerConstraintIssue[];
+}
+
+export interface LogicAnalyzerSessionConstraintAccepted {
+  ok: true;
+  report: LogicAnalyzerSessionConstraintReport;
+}
+
+export interface LogicAnalyzerStartConstraintFailure {
+  ok: false;
+  reason: "constraint-rejected";
+  report: LogicAnalyzerSessionConstraintReport;
+}
+
+export type LogicAnalyzerSessionConstraintEvaluation =
+  | LogicAnalyzerSessionConstraintAccepted
+  | LogicAnalyzerStartConstraintFailure;
+
 export interface LogicAnalyzerStartValidationFailure {
   ok: false;
   reason: "invalid-request";
@@ -111,6 +178,7 @@ export interface LogicAnalyzerStartSuccess {
 export type StartLogicAnalyzerSessionResult =
   | LogicAnalyzerStartSuccess
   | LogicAnalyzerStartValidationFailure
+  | LogicAnalyzerStartConstraintFailure
   | LogicAnalyzerStartAllocationFailure;
 
 export interface LogicAnalyzerEndValidationFailure {
@@ -134,6 +202,77 @@ export type EndLogicAnalyzerSessionResult =
   | LogicAnalyzerEndSuccess
   | LogicAnalyzerEndValidationFailure
   | LogicAnalyzerEndReleaseFailure;
+
+export const LOGIC_ANALYZER_CAPTURE_FAILURE_REASONS = [
+  "invalid-request",
+  "capture-runtime-failed",
+  "malformed-artifact",
+  "load-capture-failed"
+] as const;
+export type LogicAnalyzerCaptureFailureReason =
+  (typeof LOGIC_ANALYZER_CAPTURE_FAILURE_REASONS)[number];
+
+export interface CaptureLogicAnalyzerSessionRequest {
+  session: LogicAnalyzerSessionRecord;
+  requestedAt: string;
+  timeoutMs?: number;
+}
+
+export interface LogicAnalyzerCaptureValidationFailure {
+  ok: false;
+  reason: "invalid-request";
+  issues: readonly LogicAnalyzerValidationIssue[];
+}
+
+export interface LogicAnalyzerCaptureRuntimeFailure {
+  ok: false;
+  reason: "capture-runtime-failed";
+  session: LogicAnalyzerSessionRecord;
+  requestedAt: string;
+  captureRuntime: LiveCaptureFailure;
+}
+
+export interface LogicAnalyzerCaptureArtifactFailure {
+  ok: false;
+  reason: "malformed-artifact";
+  session: LogicAnalyzerSessionRecord;
+  requestedAt: string;
+  providerKind: InventoryProviderKind;
+  backendKind: InventoryBackendKind;
+  artifactSummary: CaptureArtifactSummary;
+  issues: readonly LogicAnalyzerValidationIssue[];
+}
+
+export interface LogicAnalyzerCaptureLoadFailure {
+  ok: false;
+  reason: "load-capture-failed";
+  session: LogicAnalyzerSessionRecord;
+  requestedAt: string;
+  providerKind: InventoryProviderKind;
+  backendKind: InventoryBackendKind;
+  artifactSummary: CaptureArtifactSummary;
+  loadCapture:
+    | UnsupportedCaptureAdapterFailure
+    | UnreadableCaptureInputFailure
+    | IncompatibleSessionCaptureFailure;
+}
+
+export interface LogicAnalyzerCaptureSuccess {
+  ok: true;
+  session: LogicAnalyzerSessionRecord;
+  requestedAt: string;
+  providerKind: InventoryProviderKind;
+  backendKind: InventoryBackendKind;
+  artifactSummary: CaptureArtifactSummary;
+  capture: Extract<LoadCaptureResult, { ok: true }>;
+}
+
+export type CaptureLogicAnalyzerSessionResult =
+  | LogicAnalyzerCaptureSuccess
+  | LogicAnalyzerCaptureValidationFailure
+  | LogicAnalyzerCaptureRuntimeFailure
+  | LogicAnalyzerCaptureArtifactFailure
+  | LogicAnalyzerCaptureLoadFailure;
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -475,6 +614,90 @@ export const validateEndLogicAnalyzerSessionRequest = (
       deviceId: value.deviceId as string,
       ownerSkillId: value.ownerSkillId as string,
       endedAt: value.endedAt as string
+    }
+  };
+};
+
+export const validateCaptureLogicAnalyzerSessionRequest = (
+  value: unknown
+): ValidationResult<CaptureLogicAnalyzerSessionRequest> => {
+  const issues: LogicAnalyzerValidationIssue[] = [];
+
+  if (!isRecord(value)) {
+    return {
+      ok: false,
+      issues: [
+        {
+          path: "$",
+          code: "invalid-type",
+          message: "Capture session request must be an object."
+        }
+      ]
+    };
+  }
+
+  pushRequiredStringIssue(issues, "requestedAt", value.requestedAt);
+
+  if (value.timeoutMs !== undefined) {
+    if (typeof value.timeoutMs !== "number" || Number.isNaN(value.timeoutMs)) {
+      issues.push({
+        path: "timeoutMs",
+        code: "invalid-type",
+        message: "timeoutMs must be a number when provided."
+      });
+    } else if (value.timeoutMs <= 0) {
+      issues.push({
+        path: "timeoutMs",
+        code: "too-small",
+        message: "timeoutMs must be greater than 0 when provided."
+      });
+    }
+  }
+
+  if (!isRecord(value.session)) {
+    issues.push({
+      path: "session",
+      code: "required",
+      message: "session is required."
+    });
+  } else {
+    const session = value.session;
+    pushRequiredStringIssue(issues, "session.sessionId", session.sessionId);
+    pushRequiredStringIssue(issues, "session.deviceId", session.deviceId);
+    pushRequiredStringIssue(issues, "session.ownerSkillId", session.ownerSkillId);
+    pushRequiredStringIssue(issues, "session.startedAt", session.startedAt);
+
+    if (!isRecord(session.device)) {
+      issues.push({
+        path: "session.device",
+        code: "required",
+        message: "session.device is required."
+      });
+    } else {
+      pushRequiredStringIssue(
+        issues,
+        "session.device.deviceId",
+        session.device.deviceId
+      );
+    }
+
+    validateSampling(session.sampling, issues);
+    validateAnalysis(session.analysis, issues);
+  }
+
+  if (issues.length > 0) {
+    return {
+      ok: false,
+      issues
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      session: value.session as LogicAnalyzerSessionRecord,
+      requestedAt: value.requestedAt as string,
+      timeoutMs: value.timeoutMs as number | undefined
     }
   };
 };

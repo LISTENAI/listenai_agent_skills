@@ -3,6 +3,7 @@ export * from "./capture-contracts.js";
 export * from "./analysis-contracts.js";
 export * from "./waveform-analyzer.js";
 export * from "./capture-loader.js";
+export * from "./session-constraints.js";
 export * from "./logic-analyzer-skill.js";
 export * from "./generic-skill.js";
 export * from "./claude-skill-installer.js";

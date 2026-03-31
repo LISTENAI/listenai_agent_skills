@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import type { ResourceManager } from "@listenai/contracts";
+import type { SnapshotResourceManager } from "@listenai/contracts";
 import type { AddressInfo } from "node:net";
 import type { LeaseManager } from "./lease-manager.js";
 import { createApp } from "./app.js";
@@ -7,7 +7,7 @@ import { createApp } from "./app.js";
 export interface ServerOptions {
   port: number;
   host: string;
-  manager: ResourceManager;
+  manager: SnapshotResourceManager;
   leaseManager: LeaseManager;
   scanIntervalMs?: number;
 }

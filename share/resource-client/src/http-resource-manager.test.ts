@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AllocationRequest,
   DeviceRecord,
+  InventorySnapshot,
   ReleaseRequest,
 } from "@listenai/contracts";
 import { HttpResourceManager } from "./http-resource-manager.js";
@@ -22,6 +23,121 @@ const allocatedDevice: DeviceRecord = {
   ...fakeDevice,
   allocationState: "allocated",
   ownerSkillId: "skill-a",
+};
+
+const readyClassicDevice: DeviceRecord = {
+  deviceId: "logic-ready",
+  label: "DSLogic Plus Ready",
+  capabilityType: "logic-analyzer",
+  connectionState: "connected",
+  allocationState: "free",
+  ownerSkillId: null,
+  lastSeenAt: "2026-03-30T10:00:00.000Z",
+  updatedAt: "2026-03-30T10:00:00.000Z",
+  readiness: "ready",
+  diagnostics: [],
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  dslogic: {
+    family: "dslogic",
+    model: "dslogic-plus",
+    modelDisplayName: "DSLogic Plus",
+    variant: "classic",
+    usbVendorId: "2a0e",
+    usbProductId: "0001",
+  },
+};
+
+const unsupportedPangoDevice: DeviceRecord = {
+  deviceId: "logic-pango",
+  label: "DSLogic V421/Pango",
+  capabilityType: "logic-analyzer",
+  connectionState: "connected",
+  allocationState: "free",
+  ownerSkillId: null,
+  lastSeenAt: "2026-03-30T10:00:00.000Z",
+  updatedAt: "2026-03-30T10:00:00.000Z",
+  readiness: "unsupported",
+  diagnostics: [
+    {
+      code: "device-unsupported-variant",
+      severity: "error",
+      target: "device",
+      message: "Variant V421/Pango (2a0e:0030) is not supported.",
+      deviceId: "logic-pango",
+      backendKind: "dsview",
+    },
+  ],
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  dslogic: {
+    family: "dslogic",
+    model: "dslogic-plus",
+    modelDisplayName: "DSLogic Plus",
+    variant: "v421-pango",
+    usbVendorId: "2a0e",
+    usbProductId: "0030",
+  },
+};
+
+const mixedDslogicSnapshot: InventorySnapshot = {
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  refreshedAt: "2026-03-30T10:00:00.000Z",
+  devices: [readyClassicDevice, unsupportedPangoDevice],
+  backendReadiness: [
+    {
+      platform: "linux",
+      backendKind: "dsview",
+      readiness: "ready",
+      executablePath: "/usr/bin/dsview",
+      version: "1.3.1",
+      checkedAt: "2026-03-30T10:00:00.000Z",
+      diagnostics: [],
+    },
+  ],
+  diagnostics: [...unsupportedPangoDevice.diagnostics ?? []],
+};
+
+const backendMissingSnapshot: InventorySnapshot = {
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  refreshedAt: "2026-03-30T10:00:00.000Z",
+  devices: [],
+  backendReadiness: [
+    {
+      platform: "macos",
+      backendKind: "dsview",
+      readiness: "missing",
+      executablePath: null,
+      version: null,
+      checkedAt: "2026-03-30T10:00:00.000Z",
+      diagnostics: [
+        {
+          code: "backend-missing-executable",
+          severity: "error",
+          target: "backend",
+          message: "DSView executable dsview was not found on macos.",
+          platform: "macos",
+          backendKind: "dsview",
+          executablePath: null,
+          backendVersion: null,
+        },
+      ],
+    },
+  ],
+  diagnostics: [
+    {
+      code: "backend-missing-executable",
+      severity: "error",
+      target: "backend",
+      message: "DSView executable dsview was not found on macos.",
+      platform: "macos",
+      backendKind: "dsview",
+      executablePath: null,
+      backendVersion: null,
+    },
+  ],
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -50,6 +166,22 @@ describe("HttpResourceManager", () => {
       expect(devices).toEqual([fakeDevice]);
       expect(fetch).toHaveBeenCalledWith(`${BASE}/devices`, undefined);
     });
+
+    it("keeps unsupported DSLogic devices visible on the compatibility device list", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse(mixedDslogicSnapshot.devices),
+      );
+
+      const devices = await mgr.listDevices();
+
+      expect(devices).toEqual(mixedDslogicSnapshot.devices);
+      expect(devices[1]).toMatchObject({
+        deviceId: "logic-pango",
+        readiness: "unsupported",
+        diagnostics: unsupportedPangoDevice.diagnostics,
+      });
+      expect(fetch).toHaveBeenCalledWith(`${BASE}/devices`, undefined);
+    });
   });
 
   describe("refreshInventory", () => {
@@ -62,6 +194,99 @@ describe("HttpResourceManager", () => {
       expect(fetch).toHaveBeenCalledWith(`${BASE}/refresh`, {
         method: "POST",
       });
+    });
+
+    it("returns unsupported DSLogic devices instead of filtering them out after refresh", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse(mixedDslogicSnapshot.devices),
+      );
+
+      const devices = await mgr.refreshInventory();
+
+      expect(devices).toEqual(mixedDslogicSnapshot.devices);
+      expect(fetch).toHaveBeenCalledWith(`${BASE}/refresh`, {
+        method: "POST",
+      });
+    });
+  });
+
+  describe("inventory snapshots", () => {
+    it("returns full snapshots from GET /inventory", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse(mixedDslogicSnapshot),
+      );
+
+      const snapshot = await mgr.getInventorySnapshot();
+
+      expect(snapshot).toEqual(mixedDslogicSnapshot);
+      expect(mgr.getLastInventorySnapshot()).toEqual(mixedDslogicSnapshot);
+      expect(fetch).toHaveBeenCalledWith(`${BASE}/inventory`, undefined);
+    });
+
+    it("returns full snapshots from POST /inventory/refresh", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse(mixedDslogicSnapshot),
+      );
+
+      const snapshot = await mgr.refreshInventorySnapshot();
+
+      expect(snapshot).toEqual(mixedDslogicSnapshot);
+      expect(mgr.getLastInventorySnapshot()).toEqual(mixedDslogicSnapshot);
+      expect(fetch).toHaveBeenCalledWith(`${BASE}/inventory/refresh`, {
+        method: "POST",
+      });
+    });
+
+    it("keeps backend-missing snapshots visible with zero ready devices", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse(backendMissingSnapshot),
+      );
+
+      const snapshot = await mgr.getInventorySnapshot();
+
+      expect(snapshot).toEqual(backendMissingSnapshot);
+      expect(snapshot.devices).toEqual([]);
+      expect(snapshot.backendReadiness[0]).toMatchObject({
+        readiness: "missing",
+        executablePath: null,
+        version: null,
+      });
+      expect(mgr.getLastInventorySnapshot()).toEqual(backendMissingSnapshot);
+    });
+
+    it("rejects malformed snapshot payloads and keeps the last good snapshot", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy.mockResolvedValueOnce(jsonResponse(mixedDslogicSnapshot));
+      await mgr.getInventorySnapshot();
+
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({
+          providerKind: "dslogic",
+          backendKind: "dsview",
+          refreshedAt: "2026-01-01T00:00:00.000Z",
+          devices: [{ deviceId: "broken" }],
+          backendReadiness: [],
+          diagnostics: [],
+        }),
+      );
+
+      await expect(mgr.refreshInventorySnapshot()).rejects.toThrow(
+        "Malformed inventory snapshot response",
+      );
+      expect(mgr.getLastInventorySnapshot()).toEqual(mixedDslogicSnapshot);
+    });
+
+    it("rejects server-unavailable snapshot calls without clearing cache", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy.mockResolvedValueOnce(jsonResponse(mixedDslogicSnapshot));
+      await mgr.getInventorySnapshot();
+
+      fetchSpy.mockRejectedValueOnce(new Error("socket hang up"));
+
+      await expect(mgr.refreshInventorySnapshot()).rejects.toThrow(
+        "Server unavailable",
+      );
+      expect(mgr.getLastInventorySnapshot()).toEqual(mixedDslogicSnapshot);
     });
   });
 

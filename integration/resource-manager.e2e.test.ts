@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createResourceManager, createServer, FakeDeviceProvider, LeaseManager } from "@listenai/resource-manager";
-import type { DeviceRecord, LeaseInfo } from "@listenai/contracts";
+import { HttpResourceManager } from "@listenai/resource-client";
+import type { DeviceRecord, InventorySnapshot, LeaseInfo } from "@listenai/contracts";
 
 interface WorkerResult {
   ok: boolean;
@@ -17,6 +18,122 @@ interface WorkerResult {
 const WORKTREE_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const TSX_LOADER_PATH = fileURLToPath(new URL("../node_modules/tsx/dist/loader.mjs", import.meta.url));
 const WORKER_PATH = fileURLToPath(new URL("./fixtures/resource-client-worker.ts", import.meta.url));
+const DSLOGIC_REFRESHED_AT = "2026-03-30T10:00:00.000Z";
+
+const readyClassicDevice: DeviceRecord = {
+  deviceId: "logic-ready",
+  label: "DSLogic Plus Ready",
+  capabilityType: "logic-analyzer",
+  connectionState: "connected",
+  allocationState: "free",
+  ownerSkillId: null,
+  lastSeenAt: DSLOGIC_REFRESHED_AT,
+  updatedAt: DSLOGIC_REFRESHED_AT,
+  readiness: "ready",
+  diagnostics: [],
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  dslogic: {
+    family: "dslogic",
+    model: "dslogic-plus",
+    modelDisplayName: "DSLogic Plus",
+    variant: "classic",
+    usbVendorId: "2a0e",
+    usbProductId: "0001",
+  },
+};
+
+const unsupportedPangoDevice: DeviceRecord = {
+  deviceId: "logic-pango",
+  label: "DSLogic V421/Pango",
+  capabilityType: "logic-analyzer",
+  connectionState: "connected",
+  allocationState: "free",
+  ownerSkillId: null,
+  lastSeenAt: DSLOGIC_REFRESHED_AT,
+  updatedAt: DSLOGIC_REFRESHED_AT,
+  readiness: "unsupported",
+  diagnostics: [
+    {
+      code: "device-unsupported-variant",
+      severity: "error",
+      target: "device",
+      message: "Variant V421/Pango (2a0e:0030) is not supported.",
+      deviceId: "logic-pango",
+      backendKind: "dsview",
+    },
+  ],
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  dslogic: {
+    family: "dslogic",
+    model: "dslogic-plus",
+    modelDisplayName: "DSLogic Plus",
+    variant: "v421-pango",
+    usbVendorId: "2a0e",
+    usbProductId: "0030",
+  },
+};
+
+const mixedDslogicSnapshot: InventorySnapshot = {
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  refreshedAt: DSLOGIC_REFRESHED_AT,
+  devices: [readyClassicDevice, unsupportedPangoDevice],
+  backendReadiness: [
+    {
+      platform: "linux",
+      backendKind: "dsview",
+      readiness: "ready",
+      executablePath: "/usr/bin/dsview",
+      version: "1.3.1",
+      checkedAt: DSLOGIC_REFRESHED_AT,
+      diagnostics: [],
+    },
+  ],
+  diagnostics: [unsupportedPangoDevice.diagnostics?.[0]].filter(Boolean),
+};
+
+const backendMissingSnapshot: InventorySnapshot = {
+  providerKind: "dslogic",
+  backendKind: "dsview",
+  refreshedAt: DSLOGIC_REFRESHED_AT,
+  devices: [],
+  backendReadiness: [
+    {
+      platform: "macos",
+      backendKind: "dsview",
+      readiness: "missing",
+      executablePath: null,
+      version: null,
+      checkedAt: DSLOGIC_REFRESHED_AT,
+      diagnostics: [
+        {
+          code: "backend-missing-executable",
+          severity: "error",
+          target: "backend",
+          message: "DSView executable dsview was not found on macos.",
+          platform: "macos",
+          backendKind: "dsview",
+          executablePath: null,
+          backendVersion: null,
+        },
+      ],
+    },
+  ],
+  diagnostics: [
+    {
+      code: "backend-missing-executable",
+      severity: "error",
+      target: "backend",
+      message: "DSView executable dsview was not found on macos.",
+      platform: "macos",
+      backendKind: "dsview",
+      executablePath: null,
+      backendVersion: null,
+    },
+  ],
+};
 
 async function waitFor(assertion: () => Promise<void>, timeoutMs = 1500, intervalMs = 20) {
   const startedAt = Date.now();
@@ -139,6 +256,99 @@ async function withLiveServer(
   }
 }
 
+async function withLiveInventoryServer(
+  initialSnapshot: InventorySnapshot,
+  run: (context: {
+    url: string;
+    provider: FakeDeviceProvider;
+    client: HttpResourceManager;
+  }) => Promise<void>,
+): Promise<void> {
+  const provider = new FakeDeviceProvider(initialSnapshot);
+  const manager = createResourceManager(provider);
+  const leaseManager = new LeaseManager({ timeoutMs: 120 });
+  const server = createServer({
+    port: 0,
+    host: "127.0.0.1",
+    manager,
+    leaseManager,
+    scanIntervalMs: 15,
+  });
+
+  const { url, port } = await server.start();
+  const client = new HttpResourceManager(url);
+
+  try {
+    expect(port).toBeGreaterThan(0);
+    expect(url).not.toContain(":0");
+    await run({ url, provider, client });
+  } finally {
+    client.dispose();
+    server.stop();
+  }
+}
+
+function snapshotWithObservedManagerTimestamps(
+  expected: InventorySnapshot,
+  observed: InventorySnapshot,
+): InventorySnapshot {
+  return {
+    ...expected,
+    refreshedAt: observed.refreshedAt,
+    devices: expected.devices.map((device) => ({
+      ...device,
+      updatedAt: observed.refreshedAt,
+    })),
+  };
+}
+
+function sortedObservedDevices(
+  expected: InventorySnapshot,
+  observed: InventorySnapshot,
+): DeviceRecord[] {
+  return snapshotWithObservedManagerTimestamps(expected, observed).devices
+    .slice()
+    .sort((left, right) => left.deviceId.localeCompare(right.deviceId));
+}
+
+function compatibilityDevicesWithObservedTimestamps(
+  expected: InventorySnapshot,
+  observedDevices: readonly DeviceRecord[],
+): DeviceRecord[] {
+  const updatedAtById = new Map(
+    observedDevices.map((device) => [device.deviceId, device.updatedAt]),
+  );
+
+  return expected.devices
+    .map((device) => ({
+      ...device,
+      updatedAt: updatedAtById.get(device.deviceId) ?? device.updatedAt,
+    }))
+    .sort((left, right) => left.deviceId.localeCompare(right.deviceId));
+}
+
+async function expectInventoryState(
+  context: { url: string; client: HttpResourceManager },
+  expected: InventorySnapshot,
+  phase: string,
+): Promise<void> {
+  let lastObservedSnapshot: InventorySnapshot | null = null;
+
+  await waitFor(async () => {
+    const observed = await fetchJson<InventorySnapshot>(`${context.url}/inventory`);
+    lastObservedSnapshot = observed;
+    expect(observed).toEqual(snapshotWithObservedManagerTimestamps(expected, observed));
+  }, 1500, 25).catch((error) => {
+    throw new Error(
+      `${phase} did not expose the expected /inventory snapshot. Last observed snapshot: ${JSON.stringify(lastObservedSnapshot)}. ${error instanceof Error ? error.message : String(error)}`,
+    );
+  });
+
+  const snapshot = await context.client.getInventorySnapshot();
+  expect(snapshot).toEqual(snapshotWithObservedManagerTimestamps(expected, snapshot));
+  expect(context.client.getLastInventorySnapshot()).toEqual(snapshot);
+}
+
 describe("resource-manager root e2e", () => {
   it("allows exactly one winning allocation across independent client processes", async () => {
     await withLiveServer(async ({ url }) => {
@@ -232,5 +442,85 @@ describe("resource-manager root e2e", () => {
         }),
       ]);
     }, "dev-expire");
+  });
+
+  it("surfaces ready and unsupported DSLogic inventory over both HTTP endpoints and the client", async () => {
+    await withLiveInventoryServer(mixedDslogicSnapshot, async ({ url, client }) => {
+      const refreshSnapshot = await fetchJson<InventorySnapshot>(`${url}/inventory/refresh`, {
+        method: "POST",
+      });
+      expect(refreshSnapshot).toEqual(snapshotWithObservedManagerTimestamps(mixedDslogicSnapshot, refreshSnapshot));
+
+      const refreshDevices = await fetchJson<DeviceRecord[]>(`${url}/refresh`, {
+        method: "POST",
+      });
+      expect(refreshDevices).toEqual(
+        compatibilityDevicesWithObservedTimestamps(mixedDslogicSnapshot, refreshDevices),
+      );
+
+      await expectInventoryState({ url, client }, mixedDslogicSnapshot, "mixed DSLogic state");
+      const refreshedByClient = await client.refreshInventorySnapshot();
+      expect(refreshedByClient).toEqual(snapshotWithObservedManagerTimestamps(mixedDslogicSnapshot, refreshedByClient));
+      const refreshedDevicesByClient = await client.refreshInventory();
+      expect(refreshedDevicesByClient).toEqual(
+        compatibilityDevicesWithObservedTimestamps(mixedDslogicSnapshot, refreshedDevicesByClient),
+      );
+      expect(client.getLastInventorySnapshot()).toEqual(refreshedByClient);
+    });
+  });
+
+  it("keeps backend-missing snapshots visible when no ready devices exist", async () => {
+    await withLiveInventoryServer(backendMissingSnapshot, async ({ url, client }) => {
+      const refreshSnapshot = await fetchJson<InventorySnapshot>(`${url}/inventory/refresh`, {
+        method: "POST",
+      });
+      expect(refreshSnapshot).toEqual(snapshotWithObservedManagerTimestamps(backendMissingSnapshot, refreshSnapshot));
+
+      const compatibilityDevices = await fetchJson<DeviceRecord[]>(`${url}/devices`);
+      expect(compatibilityDevices).toEqual([]);
+
+      const refreshedCompatibilityDevices = await fetchJson<DeviceRecord[]>(`${url}/refresh`, {
+        method: "POST",
+      });
+      expect(refreshedCompatibilityDevices).toEqual([]);
+
+      await expectInventoryState({ url, client }, backendMissingSnapshot, "backend-missing state");
+      const refreshedByClient = await client.refreshInventorySnapshot();
+      expect(refreshedByClient).toEqual(snapshotWithObservedManagerTimestamps(backendMissingSnapshot, refreshedByClient));
+      await expect(client.refreshInventory()).resolves.toEqual([]);
+      expect(client.getLastInventorySnapshot()).toEqual(refreshedByClient);
+    });
+  });
+
+  it("preserves unsupported and degraded DSLogic states across live refreshes", async () => {
+    await withLiveInventoryServer(mixedDslogicSnapshot, async ({ url, provider, client }) => {
+      const initialRefresh = await client.refreshInventorySnapshot();
+      expect(initialRefresh).toEqual(snapshotWithObservedManagerTimestamps(mixedDslogicSnapshot, initialRefresh));
+      expect(client.getLastInventorySnapshot()).toEqual(initialRefresh);
+
+      provider.setInventorySnapshot(backendMissingSnapshot);
+      const missingRefresh = await client.refreshInventorySnapshot();
+      expect(missingRefresh).toEqual(snapshotWithObservedManagerTimestamps(backendMissingSnapshot, missingRefresh));
+      expect(client.getLastInventorySnapshot()).toEqual(missingRefresh);
+      await expectInventoryState({ url, client }, backendMissingSnapshot, "refreshed backend-missing state");
+
+      provider.setInventorySnapshot(mixedDslogicSnapshot);
+      const rawRefreshedSnapshot = await fetchJson<InventorySnapshot>(`${url}/inventory/refresh`, {
+        method: "POST",
+      });
+      expect(rawRefreshedSnapshot).toEqual(snapshotWithObservedManagerTimestamps(mixedDslogicSnapshot, rawRefreshedSnapshot));
+
+      const rawRefreshedDevices = await fetchJson<DeviceRecord[]>(`${url}/refresh`, {
+        method: "POST",
+      });
+      expect(rawRefreshedDevices).toEqual(
+        compatibilityDevicesWithObservedTimestamps(mixedDslogicSnapshot, rawRefreshedDevices),
+      );
+
+      await expectInventoryState({ url, client }, mixedDslogicSnapshot, "refreshed mixed DSLogic state");
+      expect(client.getLastInventorySnapshot()).toEqual(
+        snapshotWithObservedManagerTimestamps(mixedDslogicSnapshot, client.getLastInventorySnapshot()!),
+      );
+    });
   });
 });

@@ -2,10 +2,33 @@ import { Hono } from "hono";
 import type {
   AllocationRequest,
   HeartbeatRequest,
+  LiveCaptureArtifact,
+  LiveCaptureRequest,
+  LiveCaptureResult,
   ReleaseRequest,
-  ResourceManager
+  SnapshotResourceManager
 } from "@listenai/contracts";
 import type { LeaseManager } from "./lease-manager.js";
+
+const encodeLiveCaptureArtifact = (
+  artifact: LiveCaptureArtifact
+): Record<string, unknown> => ({
+  ...artifact,
+  bytes: artifact.bytes ? Array.from(artifact.bytes) : undefined
+});
+
+const encodeLiveCaptureResult = (
+  result: LiveCaptureResult
+): LiveCaptureResult | Record<string, unknown> => {
+  if (!result.ok) {
+    return result;
+  }
+
+  return {
+    ...result,
+    artifact: encodeLiveCaptureArtifact(result.artifact)
+  };
+};
 
 function getLeaseExpiryOrThrow(leaseManager: LeaseManager, leaseId: string): string {
   const expiresAt = leaseManager.getLeaseExpiry(leaseId);
@@ -15,11 +38,22 @@ function getLeaseExpiryOrThrow(leaseManager: LeaseManager, leaseId: string): str
   return expiresAt;
 }
 
-export function createApp(manager: ResourceManager, leaseManager: LeaseManager) {
+export function createApp(
+  manager: SnapshotResourceManager,
+  leaseManager: LeaseManager
+) {
   const app = new Hono();
 
   app.get("/health", (c) => {
     return c.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.get("/inventory", async (c) => {
+    return c.json(await manager.getInventorySnapshot());
+  });
+
+  app.post("/inventory/refresh", async (c) => {
+    return c.json(await manager.refreshInventorySnapshot());
   });
 
   app.get("/devices", async (c) => {
@@ -27,8 +61,7 @@ export function createApp(manager: ResourceManager, leaseManager: LeaseManager) 
   });
 
   app.post("/refresh", async (c) => {
-    const devices = await manager.refreshInventory();
-    return c.json(devices);
+    return c.json(await manager.refreshInventory());
   });
 
   app.post("/allocate", async (c) => {
@@ -49,6 +82,12 @@ export function createApp(manager: ResourceManager, leaseManager: LeaseManager) 
       leaseManager.removeLeaseByDevice(body.deviceId);
     }
     return c.json(result, result.ok ? 200 : 400);
+  });
+
+  app.post("/capture/live", async (c) => {
+    const body = await c.req.json<LiveCaptureRequest>();
+    const result = await manager.liveCapture(body);
+    return c.json(encodeLiveCaptureResult(result), 200);
   });
 
   app.post("/heartbeat", async (c) => {

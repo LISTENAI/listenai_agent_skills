@@ -77,9 +77,11 @@ Use one of these exports from the package root:
 
 Do not deep-import internal modules from host code.
 
-## Request shape
+## Request modes
 
-Send a single packaged request object:
+Send one packaged request object in one of two modes.
+
+Offline artifact mode keeps existing callers working and may omit `mode` or set `mode: "artifact"` explicitly:
 
 ```ts
 import {
@@ -124,7 +126,43 @@ const result: GenericLogicAnalyzerResult = await runGenericLogicAnalyzer(
 );
 ```
 
-Keep the nested `session`, `artifact`, and `cleanup` contracts intact. Do not flatten them into a host-specific schema.
+Live mode starts a session, captures through the shared manager/client seam, and returns the nested `captureSession` payload on success:
+
+```ts
+const liveRequest: GenericLogicAnalyzerRequest = {
+  mode: "live",
+  session: {
+    deviceId: "logic-1",
+    ownerSkillId: "logic-analyzer",
+    requestedAt: "2026-03-26T00:01:00.000Z",
+    sampling: {
+      sampleRateHz: 1_000_000,
+      captureDurationMs: 0.004,
+      channels: [
+        { channelId: "D0", label: "CLK" },
+        { channelId: "D1", label: "DATA" }
+      ]
+    },
+    analysis: {
+      focusChannelIds: ["D0", "D1"],
+      edgePolicy: "all",
+      includePulseWidths: true,
+      timeReference: "capture-start"
+    }
+  },
+  capture: {
+    requestedAt: "2026-03-26T00:01:10.000Z",
+    timeoutMs: 1500
+  },
+  cleanup: {
+    endedAt: "2026-03-26T00:02:00.000Z"
+  }
+};
+
+const liveResult = await runGenericLogicAnalyzer(resourceManager, liveRequest);
+```
+
+Keep the nested `session`, `artifact` or `capture`, and `cleanup` contracts intact. Do not flatten them into a host-specific schema.
 
 ## Result handling
 
@@ -134,19 +172,22 @@ Successful result:
 
 - `ok: true`
 - `phase: "completed"`
-- Includes the allocated session, normalized capture metadata, and waveform analysis output
+- Includes the allocated session, normalized capture metadata, waveform analysis output, and `captureSession` details for live runs
 
 Failure phases:
 
 - `request-validation` - top-level packaged request is malformed; no allocation was attempted
 - `start-session` - the session seam rejected the request or allocation failed
-- `load-capture` - the capture-loader seam rejected the artifact or found it incompatible with the allocated session
+- `live-capture` - live capture request validation, runtime failure, or malformed live artifact after allocation
+- `load-capture` - the capture-loader seam rejected the offline artifact or the live artifact loaded from `captureSession`
 
-Treat nested payloads as authoritative diagnostics. Do not replace them with new prose-only error summaries.
+Treat nested payloads as authoritative diagnostics. Do not replace them with new prose-only error summaries. Malformed HTTP transport payloads from `HttpResourceManager` should still surface as thrown transport/parser errors instead of being rewritten into fake typed runner failures.
 
 ## Explicit cleanup after success
 
 A successful packaged run does not automatically release the device. When the host is done consuming `result.analysis`, explicitly end the session through the package-root surface to return the device to `free`.
+
+This matters most for live runs: the packaged one-shot entrypoint leaves the lease allocated on success so hosts can inspect the returned session and choose when cleanup happens.
 
 ```ts
 import {
@@ -168,20 +209,31 @@ if (result.ok) {
 }
 ```
 
+## DSLogic host support matrix
+
+The packaged live DSLogic path is only live-proven on the DSView-backed Linux host path used in S05. macOS and Windows remain readiness-modeled here: they reuse the same shared readiness vocabulary and diagnostics, but they are not claimed as equally live-proven capture hosts by this package.
+
+| Host platform | Backend expectation | Shared readiness labels | Proof status | What operators should inspect |
+| --- | --- | --- | --- | --- |
+| Linux | `dsview` executable found and probe succeeds | backend `ready`, classic DSLogic device `ready` | `live-proven` | Run the S05 gate, then inspect `backendReadiness[]`, device `readiness`, and any diagnostics returned by the resource manager. |
+| macOS | `dsview` may be absent from the host | backend `missing` when the executable is not found; devices remain non-allocatable | `readiness-modeled` | Check for `backend-missing-executable` in `backendReadiness[].diagnostics` before claiming host support. |
+| Windows | Probe can find hardware while backend confirmation still times out or variants remain unsupported | backend `degraded` on timeout, device `degraded` or `unsupported` depending on variant | `readiness-modeled` | Check `backend-probe-timeout`, `device-unsupported-variant`, or `device-probe-malformed-output` diagnostics instead of assuming the host is capture-ready. |
+
+Keep the typed vocabulary from `@listenai/contracts` intact: device readiness is `ready`, `degraded`, or `unsupported`; backend readiness is `ready`, `degraded`, `missing`, or `unsupported`.
+
 ## Verification
 
-Use the layered gates when validating the shipped template boundary:
+Use the S05 gate when validating the packaged runtime boundary and the cross-platform DSLogic support story:
 
 ```bash
-bash scripts/verify-m004-s04.sh
-pnpm run verify:s04
+bash scripts/verify-m006-s05.sh
+pnpm run verify:m006:s05
 ```
 
-The S04 gate reruns the lower S02 and S03 installer gates first, then executes the focused CLI assembly proof in `src/host-skill-install-cli.test.ts`. That top-layer proof keeps the documented usage text, success output, and host-specific failure diagnostics aligned with the shipped Claude and Codex entrypoints.
-
-For package-focused development inside this workspace, the narrower checks still exist:
+That gate is the intended operator-facing check for the packaged live proof plus the DSLogic support-matrix assertions. The package-specific focused checks that back the current S05 contract are:
 
 ```bash
-pnpm --filter @listenai/skill-logic-analyzer test -- --run src/package-asset-contract.test.ts src/generic-skill.test.ts src/host-skill-install-cli.test.ts
-pnpm --filter @listenai/skill-logic-analyzer typecheck
+pnpm --filter @listenai/skill-logic-analyzer exec vitest run src/generic-skill.test.ts
+pnpm --filter @listenai/resource-manager exec vitest run src/dslogic/dslogic-device-provider.test.ts
+rg -n "live-proven|readiness-modeled|Linux|macOS|Windows|verify:m006:s05" packages/skill-logic-analyzer/README.md packages/skill-logic-analyzer/SKILL.md
 ```
