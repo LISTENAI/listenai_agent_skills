@@ -34,12 +34,12 @@ The package also ships a CLI bin named `resource-manager`, wired to `src/cli.ts`
 From the repository root, the most direct development command is:
 
 ```bash
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
+pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 0.0.0.0 --port 7600
 ```
 
 CLI options:
 
-- `--host`, `-h`: bind host, defaults to `127.0.0.1`
+- `--host`, `-h`: bind host, defaults to `0.0.0.0` so the dashboard and API are reachable from your LAN; use `127.0.0.1` when you want loopback-only access
 - `--port`, `-p`: bind port, defaults to `7600`
 - `--provider`: device provider, `dslogic` by default, `fake` for local smoke tests
 
@@ -51,14 +51,42 @@ Examples:
 # Default DSLogic-backed startup
 pnpm --filter @listenai/resource-manager exec tsx src/cli.ts
 
-# Force the fake provider for local liveness and route smoke checks
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --provider fake --host 127.0.0.1 --port 7600
+# Force the fake provider for local smoke tests while keeping the runtime LAN-visible
+pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --provider fake --host 0.0.0.0 --port 7600
 
 # Equivalent provider selection through env
 RESOURCE_MANAGER_PROVIDER=fake pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --port 7600
 ```
 
 When startup succeeds, the process logs `Server listening on http://<host>:<port>`.
+When the host is `0.0.0.0`, connect from the same machine with `127.0.0.1` and from another LAN device with this machine's IPv4 address.
+
+## Operator path
+
+The shipped operator path is one runtime and one verification command:
+
+1. Start the packaged `resource-manager` CLI.
+2. Open `http://127.0.0.1:7600/` from the same machine, or `http://<machine-ip>:7600/` from another device on the same LAN when the host binding is `0.0.0.0`.
+3. Treat `pnpm run verify:m007:s04` as the top-level acceptance gate for this dashboard/runtime seam.
+
+That gate reruns the dashboard contract proof (`verify:m007:s01`), reruns the real startup/LAN/SSE proof (`verify:m007:s02`), and then runs the live runtime/browser alignment suites (`integration/resource-manager.e2e.test.ts` and `integration/resource-manager-dashboard.e2e.test.ts`). A passing run means the shipped dashboard entrypoint, API truth, live updates, startup behavior, and degraded-state visibility still agree.
+
+## Dashboard entrypoint and live stream
+
+The browser dashboard ships from the same Hono process as the API surface.
+
+```bash
+curl http://127.0.0.1:7600/
+curl http://127.0.0.1:7600/dashboard-snapshot
+curl -N http://127.0.0.1:7600/dashboard-events
+```
+
+- `GET /` returns the packaged dashboard HTML entrypoint.
+- `GET /dashboard.js` returns the browser client bundle served by the same runtime.
+- `GET /dashboard-snapshot` returns the authoritative browser snapshot contract.
+- `GET /dashboard-events` keeps browser clients synchronized through a read-only SSE stream.
+
+When the CLI is started with `--host 0.0.0.0`, those same routes are reachable from the LAN at `http://<machine-ip>:7600/...`.
 
 ## Health and inventory checks
 
@@ -261,6 +289,16 @@ Focused package checks:
 pnpm --filter @listenai/resource-manager test
 pnpm --filter @listenai/resource-manager typecheck
 ```
+
+Slice verification gates for Milestone M007:
+
+```bash
+pnpm run verify:m007:s01
+pnpm run verify:m007:s02
+pnpm run verify:m007:s04
+```
+
+Use `verify:m007:s04` as the authoritative final acceptance command for the shipped operator path. It proves the dashboard contract, real runtime startup, LAN-visible serving, API truth, SSE updates, and degraded-state visibility together.
 
 Repo-level verification paths that also exercise this package:
 

@@ -17,7 +17,7 @@ async function main() {
       host: {
         type: "string",
         short: "h",
-        default: "127.0.0.1"
+        default: "0.0.0.0"
       },
       provider: {
         type: "string",
@@ -27,7 +27,7 @@ async function main() {
   })
 
   const port = parseInt(values.port || "7600", 10)
-  const host = values.host || "127.0.0.1"
+  const host = values.host || "0.0.0.0"
   const providerKind = values.provider === "fake" ? "fake" : "dslogic"
 
   const provider = createDeviceProvider({ providerKind })

@@ -180,6 +180,95 @@ export interface LeaseInfo {
   lastRefreshedAt: string;
 }
 
+export const DASHBOARD_DEVICE_BADGES = [
+  "ready",
+  "degraded",
+  "unsupported",
+  "disconnected"
+] as const;
+export type DashboardDeviceBadge = (typeof DASHBOARD_DEVICE_BADGES)[number];
+
+export const DASHBOARD_LEASE_STATES = [
+  "none",
+  "active",
+  "overdue",
+  "missing",
+  "orphaned"
+] as const;
+export type DashboardLeaseState = (typeof DASHBOARD_LEASE_STATES)[number];
+
+export const DASHBOARD_OCCUPANCY_STATES = [
+  "available",
+  "occupied",
+  "lease-overdue",
+  "lease-missing",
+  "lease-orphaned"
+] as const;
+export type DashboardOccupancyState =
+  (typeof DASHBOARD_OCCUPANCY_STATES)[number];
+
+export interface DashboardOwnerIdentity {
+  skillId: string;
+  source: "lease" | "device";
+}
+
+export interface DashboardLeaseTiming {
+  state: DashboardLeaseState;
+  leaseId: string | null;
+  createdAt: string | null;
+  lastRefreshedAt: string | null;
+  expiresAt: string | null;
+  remainingMs: number | null;
+  timeoutMs: number | null;
+}
+
+export interface DashboardDeviceRow {
+  deviceId: string;
+  label: string;
+  capabilityType: string;
+  connectionState: ConnectionState;
+  allocationState: AllocationState;
+  readinessBadge: DashboardDeviceBadge;
+  occupancyState: DashboardOccupancyState;
+  owner: DashboardOwnerIdentity | null;
+  lease: DashboardLeaseTiming;
+  lastSeenAt: string | null;
+  updatedAt: string;
+  diagnostics: readonly InventoryDiagnostic[];
+  providerKind?: InventoryProviderKind;
+  backendKind?: InventoryBackendKind;
+}
+
+export interface DashboardOverview {
+  totalDevices: number;
+  connectedDevices: number;
+  disconnectedDevices: number;
+  availableDevices: number;
+  occupiedDevices: number;
+  readyDevices: number;
+  degradedDevices: number;
+  unsupportedDevices: number;
+  activeLeases: number;
+  overdueLeases: number;
+  missingLeases: number;
+  orphanedLeases: number;
+  expiringSoon: number;
+  backendReady: number;
+  backendDegraded: number;
+  backendMissing: number;
+  backendUnsupported: number;
+}
+
+export interface DashboardSnapshot {
+  generatedAt: string;
+  providerKind: InventoryProviderKind;
+  backendKind: InventoryBackendKind;
+  overview: DashboardOverview;
+  backendReadiness: readonly BackendReadinessRecord[];
+  devices: readonly DashboardDeviceRow[];
+  diagnostics: readonly InventoryDiagnostic[];
+}
+
 export interface HeartbeatRequest {
   leaseId: string;
 }

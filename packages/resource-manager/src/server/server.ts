@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import type { SnapshotResourceManager } from "@listenai/contracts";
 import type { AddressInfo } from "node:net";
 import type { LeaseManager } from "./lease-manager.js";
-import { createApp } from "./app.js";
+import { createApp, createDashboardLiveUpdates } from "./app.js";
 
 export interface ServerOptions {
   port: number;
@@ -37,7 +37,13 @@ function toStartInfo(server: { address(): string | AddressInfo | null }, fallbac
 }
 
 export function createServer(options: ServerOptions) {
-  const app = createApp(options.manager, options.leaseManager);
+  const dashboardLiveUpdates = createDashboardLiveUpdates(
+    options.manager,
+    options.leaseManager
+  );
+  const app = createApp(options.manager, options.leaseManager, {
+    dashboardLiveUpdates
+  });
   const scanIntervalMs = options.scanIntervalMs ?? 10000;
 
   let server: ReturnType<typeof serve> | null = null;
@@ -80,13 +86,23 @@ export function createServer(options: ServerOptions) {
 
       if (!scanInterval) {
         scanInterval = setInterval(() => {
-          const expiredCount = options.leaseManager.scanExpired(async (lease) => {
+          const expiredCount = options.leaseManager.scanExpired((lease) => {
             console.log(`Lease expired for device ${lease.deviceId}`);
-            await options.manager.releaseDevice({
-              deviceId: lease.deviceId,
-              ownerSkillId: lease.ownerSkillId,
-              releasedAt: new Date().toISOString()
-            });
+            void options.manager
+              .releaseDevice({
+                deviceId: lease.deviceId,
+                ownerSkillId: lease.ownerSkillId,
+                releasedAt: new Date().toISOString()
+              })
+              .then(async () => {
+                await dashboardLiveUpdates.publish("lease-expired");
+              })
+              .catch((error) => {
+                console.error(
+                  `[dashboard-live] failed to release expired lease for ${lease.deviceId}:`,
+                  error
+                );
+              });
           });
           if (expiredCount > 0) {
             console.log(`Released ${expiredCount} expired lease(s)`);
@@ -102,6 +118,7 @@ export function createServer(options: ServerOptions) {
         clearInterval(scanInterval);
         scanInterval = null;
       }
+      dashboardLiveUpdates.close();
       if (server) {
         server.close();
         server = null;
