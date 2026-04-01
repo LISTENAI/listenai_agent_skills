@@ -42,7 +42,7 @@ function createDiagnostic(
   overrides: Partial<InventoryDiagnostic> = {},
 ): InventoryDiagnostic {
   return {
-    code: "backend-probe-failed",
+    code: "backend-runtime-failed",
     severity: "warning",
     target: "backend",
     message: "Backend probe returned incomplete capability data.",
@@ -83,16 +83,17 @@ function createReadyInventorySnapshot(
   overrides: Partial<InventorySnapshot> = {},
 ): InventorySnapshot {
   return {
-    providerKind: "dslogic",
-    backendKind: "libsigrok",
     refreshedAt: connectedAt,
+    inventoryScope: {
+      providerKinds: ["dslogic"],
+      backendKinds: ["libsigrok"],
+    },
     devices: [createInventoryDevice()],
     backendReadiness: [
       {
         platform: "macos",
         backendKind: "libsigrok",
         readiness: "ready",
-        executablePath: "/opt/homebrew/lib/libsigrok.dylib",
         version: "libsigrok 0.6.0",
         checkedAt: connectedAt,
         diagnostics: [],
@@ -110,7 +111,6 @@ function createBackendMissingSnapshot(): InventorySnapshot {
         platform: "macos",
         backendKind: "libsigrok",
         readiness: "missing",
-        executablePath: null,
         version: null,
         checkedAt: connectedAt,
         diagnostics: [
@@ -294,7 +294,6 @@ describe("logic-analyzer live HTTP workflow", () => {
   it("normalizes a live capture over HTTP and keeps the accepted lease until endSession", async () => {
     const liveCaptureRunner = createDslogicLiveCaptureRunner(async () => ({
       ok: true,
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
             artifact: {
         sourceName: "logic-1-live.csv",
         formatHint: "sigrok-csv",
@@ -402,13 +401,9 @@ describe("logic-analyzer live HTTP workflow", () => {
     const liveCaptureRunner = createDslogicLiveCaptureRunner(async () => ({
       ok: false,
       kind: "timeout",
-      phase: "await-runner",
+      phase: "capture",
       message: "libsigrok capture timed out.",
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
             timeoutMs: 1500,
-      stderr: {
-        text: "Capture did not complete within 1500ms.",
-      },
     }));
 
     await withLiveServer(
@@ -444,7 +439,7 @@ describe("logic-analyzer live HTTP workflow", () => {
             ok: false,
             kind: "timeout",
             diagnostics: {
-              phase: "await-runner",
+              phase: "capture",
               timeoutMs: 1500,
             },
           },
@@ -472,7 +467,6 @@ describe("logic-analyzer live HTTP workflow", () => {
   it("proves the packaged live entrypoint over HTTP and keeps cleanup explicit on success", async () => {
     const liveCaptureRunner = createDslogicLiveCaptureRunner(async () => ({
       ok: true,
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
             artifact: {
         sourceName: "logic-1-live.csv",
         formatHint: "sigrok-csv",
@@ -679,7 +673,6 @@ describe("logic-analyzer live HTTP workflow", () => {
   it("throws malformed live HTTP payloads as parser errors and keeps the accepted lease inspectable", async () => {
     const liveCaptureRunner = createDslogicLiveCaptureRunner(async () => ({
       ok: true,
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
             artifact: {
         sourceName: "logic-1-live.csv",
         formatHint: "sigrok-csv",
@@ -699,7 +692,9 @@ describe("logic-analyzer live HTTP workflow", () => {
         const sessionSkill = createLogicAnalyzerSkill(resourceManager);
         const originalFetch = globalThis.fetch;
 
-        vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+        vi
+          .spyOn(globalThis, "fetch")
+          .mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
           const requestUrl =
             typeof input === "string"
               ? input
@@ -810,13 +805,9 @@ describe("logic-analyzer live HTTP workflow", () => {
     const liveCaptureRunner = createDslogicLiveCaptureRunner(async () => ({
       ok: false,
       kind: "timeout",
-      phase: "await-runner",
+      phase: "capture",
       message: "libsigrok capture timed out.",
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
             timeoutMs: 1500,
-      stderr: {
-        text: "Capture did not complete within 1500ms.",
-      },
     }));
 
     await withLiveServer(
@@ -846,7 +837,7 @@ describe("logic-analyzer live HTTP workflow", () => {
               ok: false,
               kind: "timeout",
               diagnostics: {
-                phase: "await-runner",
+                phase: "capture",
                 timeoutMs: 1500,
               },
             },

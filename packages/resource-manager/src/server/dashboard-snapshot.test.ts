@@ -28,7 +28,7 @@ const inventory: InventorySnapshot = {
       readiness: "degraded",
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "device",
           message: "Capture path is slower than expected.",
@@ -120,7 +120,6 @@ const inventory: InventorySnapshot = {
       platform: "macos",
       backendKind: "libsigrok",
       readiness: "missing",
-      executablePath: null,
       version: null,
       checkedAt: refreshedAt,
       diagnostics: [
@@ -138,12 +137,11 @@ const inventory: InventorySnapshot = {
       platform: "linux",
       backendKind: "libsigrok",
       readiness: "degraded",
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
       version: "1.0.0",
       checkedAt: refreshedAt,
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "backend",
           message: "Probe returned slowly.",
@@ -184,7 +182,7 @@ const mixedProviderCollisionInventory: InventorySnapshot = {
       readiness: "ready",
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "device",
           message: "libsigrok capture path is slow.",
@@ -213,7 +211,7 @@ const mixedProviderCollisionInventory: InventorySnapshot = {
       readiness: "degraded",
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "device",
           message: "Fake backend path is slow.",
@@ -236,12 +234,11 @@ const mixedProviderCollisionInventory: InventorySnapshot = {
       platform: "macos",
       backendKind: "libsigrok",
       readiness: "degraded",
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
       version: "2.0.0",
       checkedAt: refreshedAt,
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "backend",
           message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
@@ -254,7 +251,6 @@ const mixedProviderCollisionInventory: InventorySnapshot = {
       platform: "macos",
       backendKind: "fake",
       readiness: "ready",
-      executablePath: null,
       version: null,
       checkedAt: refreshedAt,
       diagnostics: []
@@ -262,7 +258,7 @@ const mixedProviderCollisionInventory: InventorySnapshot = {
   ],
   diagnostics: [
     {
-      code: "backend-probe-timeout",
+      code: "backend-runtime-timeout",
       severity: "warning",
       target: "backend",
       message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",

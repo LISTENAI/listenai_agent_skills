@@ -14,5 +14,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "composite": true
-  }
+  },
+  "exclude": ["**/dist/**", "**/node_modules/**", ".gsd/**"]
 }

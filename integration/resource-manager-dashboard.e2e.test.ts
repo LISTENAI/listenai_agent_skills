@@ -47,7 +47,6 @@ const healthySnapshot: InventorySnapshot = {
       platform: "linux",
       backendKind: "libsigrok",
       readiness: "ready",
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
       version: "0.6.0",
       checkedAt: REFRESHED_AT,
       diagnostics: []
@@ -75,7 +74,7 @@ const backendDegradedSnapshot: InventorySnapshot = {
       readiness: "degraded",
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "device",
           message: "Capture path is slower than expected.",
@@ -98,12 +97,11 @@ const backendDegradedSnapshot: InventorySnapshot = {
       platform: "linux",
       backendKind: "libsigrok",
       readiness: "degraded",
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
       version: "0.6.0",
       checkedAt: REFRESHED_AT,
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "backend",
           message: "libsigrok probe timed out before readiness was confirmed on linux.",
@@ -115,7 +113,7 @@ const backendDegradedSnapshot: InventorySnapshot = {
   ],
   diagnostics: [
     {
-      code: "backend-probe-timeout",
+      code: "backend-runtime-timeout",
       severity: "warning",
       target: "backend",
       message: "libsigrok probe timed out before readiness was confirmed on linux.",
@@ -137,7 +135,6 @@ const backendMissingSnapshot: InventorySnapshot = {
       platform: "macos",
       backendKind: "libsigrok",
       readiness: "missing",
-      executablePath: null,
       version: null,
       checkedAt: REFRESHED_AT,
       diagnostics: [
@@ -148,7 +145,6 @@ const backendMissingSnapshot: InventorySnapshot = {
           message: "libsigrok runtime is not available on macos.",
           platform: "macos",
           backendKind: "libsigrok",
-          executablePath: null,
           backendVersion: null
         }
       ]
@@ -162,7 +158,6 @@ const backendMissingSnapshot: InventorySnapshot = {
       message: "libsigrok runtime is not available on macos.",
       platform: "macos",
       backendKind: "libsigrok",
-      executablePath: null,
       backendVersion: null
     }
   ]
@@ -502,7 +497,7 @@ describe("resource-manager dashboard browser truth", () => {
             "device entry unavailable or abnormal"
           );
           expect(harness.elements["#backend-summary"].textContent).toBe("Runtime libsigrok");
-          expectHtmlToContain(harness.elements["#backend-readiness"], "backend-probe-timeout");
+          expectHtmlToContain(harness.elements["#backend-readiness"], "backend-runtime-timeout");
           expectHtmlToContain(harness.elements["#backend-readiness"], "degraded");
           expectHtmlToContain(
             harness.elements["#diagnostics"],

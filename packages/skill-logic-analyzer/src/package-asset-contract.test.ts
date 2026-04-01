@@ -116,7 +116,8 @@ describe("skill package asset contract", () => {
     expect(packageSkill).not.toContain(`${legacySkillDir}/`);
 
     expect(rootReadme).toContain("packages/skill-logic-analyzer/README.md");
-    expect(rootReadme).toContain("repo-level integration and end-to-end proofs");
+    expect(rootReadme).toContain("This README is intentionally user-facing.");
+    expect(rootReadme).toContain("CONTRIBUTING.md");
     expect(rootReadme).not.toContain(`./${legacySkillDir}/README.md`);
   });
 
@@ -183,6 +184,7 @@ describe("skill package asset contract", () => {
     expect(packageRoot.GENERIC_LOGIC_ANALYZER_PHASES).toEqual([
       "request-validation",
       "start-session",
+      "live-capture",
       "load-capture",
       "completed"
     ]);

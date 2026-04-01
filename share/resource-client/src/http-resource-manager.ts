@@ -122,13 +122,6 @@ const parseInventoryDiagnostic = (
       `${path}.backendKind`,
     ) as InventoryDiagnostic["backendKind"];
   }
-  if (value.executablePath !== undefined) {
-    diagnostic.executablePath = readString(
-      value.executablePath,
-      `${path}.executablePath`,
-      true,
-    );
-  }
   if (value.backendVersion !== undefined) {
     diagnostic.backendVersion = readString(
       value.backendVersion,
@@ -228,7 +221,6 @@ const parseBackendReadinessRecord = (
       `${path}.backendKind`,
     ) as BackendReadinessRecord["backendKind"],
     readiness: readString(value.readiness, `${path}.readiness`) as BackendReadinessRecord["readiness"],
-    executablePath: readString(value.executablePath, `${path}.executablePath`, true),
     version: readString(value.version, `${path}.version`, true),
     checkedAt: readString(value.checkedAt, `${path}.checkedAt`, true),
     diagnostics: readStringArrayField(

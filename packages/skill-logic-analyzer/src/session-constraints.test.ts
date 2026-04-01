@@ -42,11 +42,11 @@ const createRequest = (
 const createDiagnostic = (
   overrides: Partial<InventoryDiagnostic> = {}
 ): InventoryDiagnostic => ({
-  code: "backend-probe-failed",
+  code: "backend-runtime-failed",
   severity: "warning",
   target: "backend",
   message: "Backend probe returned incomplete capability data.",
-  backendKind: "dsview",
+  backendKind: "libsigrok",
   ...overrides
 });
 
@@ -64,7 +64,7 @@ const createDevice = (
   readiness: "ready",
   diagnostics: [],
   providerKind: "dslogic",
-  backendKind: "dsview",
+  backendKind: "libsigrok",
   dslogic: {
     family: "dslogic",
     model: "dslogic-plus",
@@ -82,15 +82,14 @@ const createSnapshot = (
   refreshedAt,
   inventoryScope: {
     providerKinds: ["dslogic"],
-    backendKinds: ["dsview"]
+    backendKinds: ["libsigrok"]
   },
   devices: [createDevice()],
   backendReadiness: [
     {
       platform: "macos",
-      backendKind: "dsview",
+      backendKind: "libsigrok",
       readiness: "ready",
-      executablePath: "/Applications/DSView.app/Contents/MacOS/DSView",
       version: "1.3.1",
       checkedAt: refreshedAt,
       diagnostics: []
@@ -303,25 +302,24 @@ describe("evaluateStartSessionConstraints", () => {
         backendReadiness: [
           {
             platform: "macos",
-            backendKind: "dsview",
+            backendKind: "libsigrok",
             readiness: "missing",
-            executablePath: null,
             version: null,
             checkedAt: refreshedAt,
             diagnostics: [
               createDiagnostic({
-                code: "backend-missing-executable",
+                code: "backend-missing-runtime",
                 severity: "error",
-                message: "DSView was not found on PATH."
+                message: "libsigrok was not found on PATH."
               })
             ]
           }
         ],
         diagnostics: [
           createDiagnostic({
-            code: "backend-missing-executable",
+            code: "backend-missing-runtime",
             severity: "error",
-            message: "DSView was not found on PATH."
+            message: "libsigrok was not found on PATH."
           })
         ]
       }),
@@ -333,14 +331,13 @@ describe("evaluateStartSessionConstraints", () => {
         backendReadiness: [
           {
             platform: "macos",
-            backendKind: "dsview",
+            backendKind: "libsigrok",
             readiness: "degraded",
-            executablePath: "/Applications/DSView.app/Contents/MacOS/DSView",
             version: "1.3.1",
             checkedAt: refreshedAt,
             diagnostics: [
               createDiagnostic({
-                code: "backend-probe-timeout",
+                code: "backend-runtime-timeout",
                 message: "Backend probe timed out before capabilities were confirmed."
               })
             ]
@@ -470,7 +467,7 @@ describe("evaluateStartSessionConstraints", () => {
           readiness: undefined,
           diagnostics: [
             createDiagnostic({
-              code: "device-probe-malformed-output",
+              code: "device-runtime-malformed-response",
               target: "device",
               message: "Device capability payload was incomplete.",
               deviceId: "logic-1"
@@ -511,7 +508,7 @@ describe("evaluateStartSessionConstraints", () => {
       devices: [],
       diagnostics: [
         createDiagnostic({
-          code: "backend-probe-failed",
+          code: "backend-runtime-failed",
           severity: "error",
           message: "Backend reported device logic-1 but could not hydrate its row.",
           deviceId: "logic-1"

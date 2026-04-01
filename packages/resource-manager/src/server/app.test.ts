@@ -73,7 +73,6 @@ const dslogicSnapshot: InventorySnapshot = {
       platform: "macos",
       backendKind: "libsigrok",
       readiness: "missing",
-      executablePath: null,
       version: null,
       checkedAt: refreshedAt,
       diagnostics: [
@@ -119,7 +118,7 @@ const mixedProviderInventory: InventorySnapshot = {
       readiness: "ready",
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "device",
           message: "libsigrok capture path is slow.",
@@ -148,7 +147,7 @@ const mixedProviderInventory: InventorySnapshot = {
       readiness: "degraded",
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "device",
           message: "Fake provider reported a slower probe.",
@@ -171,12 +170,11 @@ const mixedProviderInventory: InventorySnapshot = {
       platform: "macos",
       backendKind: "libsigrok",
       readiness: "degraded",
-      executablePath: "/opt/homebrew/lib/libsigrok.dylib",
       version: "2.0.0",
       checkedAt: refreshedAt,
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "backend",
           message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
@@ -189,7 +187,6 @@ const mixedProviderInventory: InventorySnapshot = {
       platform: "macos",
       backendKind: "fake",
       readiness: "ready",
-      executablePath: null,
       version: null,
       checkedAt: refreshedAt,
       diagnostics: []
@@ -197,7 +194,7 @@ const mixedProviderInventory: InventorySnapshot = {
   ],
   diagnostics: [
     {
-      code: "backend-probe-timeout",
+      code: "backend-runtime-timeout",
       severity: "warning",
       target: "backend",
       message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
@@ -256,7 +253,7 @@ const dashboardSnapshotInventory: InventorySnapshot = {
       readiness: "degraded",
       diagnostics: [
         {
-          code: "backend-probe-timeout",
+          code: "backend-runtime-timeout",
           severity: "warning",
           target: "device",
           message: "Capture path is slower than expected.",
@@ -298,7 +295,6 @@ const dashboardSnapshotInventory: InventorySnapshot = {
       platform: "macos",
       backendKind: "libsigrok",
       readiness: "missing",
-      executablePath: null,
       version: null,
       checkedAt: refreshedAt,
       diagnostics: [

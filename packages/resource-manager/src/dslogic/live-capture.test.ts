@@ -106,10 +106,6 @@ describe("DSLogic live capture seam", () => {
         nativeCode: string | null;
       };
     }>();
-
-    expectTypeOf<LiveCaptureResult>().toEqualTypeOf<
-      LiveCaptureSuccess | LiveCaptureFailure
-    >();
   });
 
   it("creates a provider-dispatched DSLogic native live capture adapter", async () => {
@@ -261,8 +257,6 @@ describe("DSLogic live capture seam", () => {
         "Expected backendKind libsigrok.",
         "Accepted live capture sessions must include DSLogic identity details."
       ]);
-      expect("executablePath" in result.diagnostics).toBe(false);
-      expect("command" in result.diagnostics).toBe(false);
     }
   });
 

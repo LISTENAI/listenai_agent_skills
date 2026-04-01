@@ -65,7 +65,7 @@ const createClock = (...timestamps: string[]) => {
 const createDiagnostic = (
   overrides: Partial<InventoryDiagnostic> = {}
 ): InventoryDiagnostic => ({
-  code: "backend-probe-failed",
+  code: "backend-runtime-failed",
   severity: "warning",
   target: "backend",
   message: "Backend probe returned incomplete capability data.",
@@ -113,7 +113,6 @@ const createReadyInventorySnapshot = (
       platform: "macos",
       backendKind: "libsigrok",
       readiness: "ready",
-      executablePath: "/Applications/DSView.app/Contents/MacOS/DSView",
       version: "1.3.1",
       checkedAt: connectedAt,
       diagnostics: []
@@ -520,23 +519,22 @@ describe("logic analyzer skill", () => {
           platform: "macos",
           backendKind: "libsigrok",
           readiness: "missing",
-          executablePath: null,
           version: null,
           checkedAt: connectedAt,
           diagnostics: [
             createDiagnostic({
-              code: "backend-missing-executable",
+              code: "backend-missing-runtime",
               severity: "error",
-              message: "DSView was not found on PATH."
+              message: "libsigrok was not found on PATH."
             })
           ]
         }
       ],
       diagnostics: [
         createDiagnostic({
-          code: "backend-missing-executable",
+          code: "backend-missing-runtime",
           severity: "error",
-          message: "DSView was not found on PATH."
+          message: "libsigrok was not found on PATH."
         })
       ]
     });
@@ -787,8 +785,6 @@ describe("logic analyzer skill", () => {
       now: createClock(connectedAt),
       liveCaptureRunner: createDslogicLiveCaptureRunner(async () => ({
         ok: true,
-        executablePath: "/Applications/DSView.app/Contents/MacOS/DSView",
-        command: ["libsigrok", "--capture", "logic-1"],
         artifact: {
           sourceName: "logic-1-live.csv",
           formatHint: "sigrok-csv",
@@ -866,14 +862,9 @@ describe("logic analyzer skill", () => {
       liveCaptureRunner: createDslogicLiveCaptureRunner(async () => ({
         ok: false,
         kind: "timeout",
-        phase: "await-runner",
-        message: "DSView capture timed out.",
-        executablePath: "/Applications/DSView.app/Contents/MacOS/DSView",
-        command: ["libsigrok", "--capture", "logic-1"],
+        phase: "capture",
+        message: "libsigrok capture timed out.",
         timeoutMs: 1500,
-        stderr: {
-          text: "Capture did not complete within 1500ms.",
-        },
       })),
     });
     const skill = createLogicAnalyzerSkill(resourceManager, {
@@ -904,7 +895,7 @@ describe("logic analyzer skill", () => {
         kind: "timeout",
         requestedAt: captureRequestedAt,
         diagnostics: {
-          phase: "await-runner",
+          phase: "capture",
           timeoutMs: 1500,
         },
       },
@@ -924,8 +915,6 @@ describe("logic analyzer skill", () => {
       now: createClock(connectedAt),
       liveCaptureRunner: createDslogicLiveCaptureRunner(async () => ({
         ok: true,
-        executablePath: "/Applications/DSView.app/Contents/MacOS/DSView",
-        command: ["libsigrok", "--capture", "logic-1"],
         artifact: {
           sourceName: "logic-1-incompatible.csv",
           formatHint: "sigrok-csv",

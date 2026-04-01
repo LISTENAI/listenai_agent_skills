@@ -81,9 +81,9 @@ Treat nested payloads as authoritative diagnostics. Do not replace them with a n
 Use the package README's DSLogic support matrix as the operator-facing truth.
 
 Support summary:
-- Linux + `dsview`: `live-proven` in S05 when backend readiness is `ready` and the classic DSLogic device is `ready`.
-- macOS + `dsview`: `readiness-modeled`; treat `missing` backend readiness and `backend-missing-executable` as truthful operator diagnostics, not as implied live support.
-- Windows + `dsview`: `readiness-modeled`; treat `degraded` backend readiness, `backend-probe-timeout`, `device-unsupported-variant`, and `device-probe-malformed-output` as explicit non-ready diagnostics.
+- Linux + `libsigrok`: `live-proven` in S05 when backend readiness is `ready` and the classic DSLogic device is `ready`.
+- macOS + `libsigrok`: `readiness-modeled`; treat `missing` backend readiness and `backend-missing-runtime` as truthful operator diagnostics, not as implied live support.
+- Windows + `libsigrok`: `readiness-modeled`; treat `degraded` backend readiness, `backend-runtime-timeout`, `device-unsupported-variant`, and `device-runtime-malformed-response` as explicit non-ready diagnostics.
 
 Keep the shared contract vocabulary intact:
 - device readiness: <code>ready</code>, <code>degraded</code>, <code>unsupported</code>

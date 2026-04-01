@@ -890,9 +890,6 @@ function renderBackendReadiness(snapshot) {
   backendReadiness.innerHTML = snapshot.backendReadiness
     .map((backend) => {
       const details = [];
-      if (backend.executablePath) {
-        details.push('<span><span class="detail-label">Runtime path</span><br /><code>' + escapeHtml(backend.executablePath) + '</code></span>');
-      }
       if (backend.version) {
         details.push('<span><span class="detail-label">Version</span><br />' + escapeHtml(backend.version) + '</span>');
       }

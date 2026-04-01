@@ -87,13 +87,15 @@ const mixedDslogicSnapshot: InventorySnapshot = {
       platform: "linux",
       backendKind: "libsigrok",
       readiness: "ready",
-      executablePath: "/usr/local/lib/libsigrok.so",
       version: "libsigrok 0.6.0",
       checkedAt: DSLOGIC_REFRESHED_AT,
       diagnostics: [],
     },
   ],
-  diagnostics: [unsupportedPangoDevice.diagnostics?.[0]].filter(Boolean),
+  diagnostics: [unsupportedPangoDevice.diagnostics?.[0]].filter(
+    (diagnostic): diagnostic is NonNullable<typeof unsupportedPangoDevice.diagnostics>[number] =>
+      diagnostic !== undefined,
+  ),
 };
 
 const backendMissingSnapshot: InventorySnapshot = {
@@ -108,7 +110,6 @@ const backendMissingSnapshot: InventorySnapshot = {
       platform: "macos",
       backendKind: "libsigrok",
       readiness: "missing",
-      executablePath: null,
       version: null,
       checkedAt: DSLOGIC_REFRESHED_AT,
       diagnostics: [

@@ -217,7 +217,7 @@ The packaged live DSLogic path is only live-proven on the Linux host path where 
 | --- | --- | --- | --- | --- |
 | Linux | Native `libsigrok` runtime is present and the probe succeeds | backend `ready`, classic DSLogic device `ready` | `live-proven` | Run the S05 gate, then inspect `backendReadiness[]`, device `readiness`, and any diagnostics returned by the resource manager. |
 | macOS | Native `libsigrok` runtime may be absent from the host | backend `missing` when the runtime cannot be resolved; devices remain non-allocatable | `readiness-modeled` | Check for `backend-missing-runtime` in `backendReadiness[].diagnostics` before claiming host support. |
-| Windows | The probe can find hardware while runtime confirmation still times out or variants remain unsupported | backend `degraded` on timeout, device `degraded` or `unsupported` depending on variant | `readiness-modeled` | Check `backend-probe-timeout`, `device-unsupported-variant`, or `device-probe-malformed-output` diagnostics instead of assuming the host is capture-ready. |
+| Windows | The probe can find hardware while runtime confirmation still times out or variants remain unsupported | backend `degraded` on timeout, device `degraded` or `unsupported` depending on variant | `readiness-modeled` | Check `backend-runtime-timeout`, `device-unsupported-variant`, or `device-runtime-malformed-response` diagnostics instead of assuming the host is capture-ready. |
 
 Keep the typed vocabulary from `@listenai/contracts` intact: device readiness is `ready`, `degraded`, or `unsupported`; backend readiness is `ready`, `degraded`, `missing`, or `unsupported`. Hosts should preserve those values in logs, browser surfaces, and operator docs instead of rewriting them into install instructions.
 

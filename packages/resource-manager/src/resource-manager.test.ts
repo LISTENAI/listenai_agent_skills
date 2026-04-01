@@ -235,7 +235,6 @@ describe("fake device provider snapshot seam", () => {
           platform: "macos",
           backendKind: "libsigrok",
           readiness: "missing",
-          executablePath: null,
           version: null,
           checkedAt: refreshedAt,
           diagnostics: [
@@ -366,7 +365,6 @@ describe("fake device provider snapshot seam", () => {
           platform: "linux",
           backendKind: "libsigrok",
           readiness: "ready",
-          executablePath: "/usr/bin/dsview",
           version: "1.3.1",
           checkedAt: refreshedAt,
           diagnostics: []
@@ -747,7 +745,6 @@ describe("in-memory resource manager", () => {
           platform: "macos",
           backendKind: "libsigrok",
           readiness: "degraded",
-          executablePath: "/Applications/DSView.app",
           version: "2.0.0",
           checkedAt: connectedAt,
           diagnostics: [
@@ -816,7 +813,6 @@ describe("in-memory resource manager", () => {
           platform: "macos",
           backendKind: "fake",
           readiness: "ready",
-          executablePath: null,
           version: null,
           checkedAt: connectedAt,
           diagnostics: []
@@ -1033,7 +1029,6 @@ describe("in-memory resource manager", () => {
           platform: "macos",
           backendKind: "libsigrok",
           readiness: "missing",
-          executablePath: null,
           version: null,
           checkedAt: connectedAt,
           diagnostics: [
@@ -1114,7 +1109,6 @@ describe("in-memory resource manager live capture dispatch", () => {
         platform: "macos",
         backendKind: "libsigrok",
         readiness: "ready",
-        executablePath: "/Applications/DSView.app/Contents/MacOS/dsview",
         version: "1.3.1",
         checkedAt: refreshedAt,
         diagnostics: []
