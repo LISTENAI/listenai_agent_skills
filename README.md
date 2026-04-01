@@ -2,66 +2,154 @@
 
 <h4 align="right"><strong>English</strong> | <a href="README.zh-CN.md">简体中文</a></h4>
 
-ListenAI Agent Skills is a pnpm workspace for reusable embedded-debugging agent capabilities. The repository packages a resource-manager HTTP service, the shared contracts that define its requests and records, an HTTP client for that manager, and a logic-analyzer skill package that can be exercised from the repo itself.
+ListenAI Agent Skills is a pnpm workspace for using a packaged `resource-manager` service together with reusable skill packages. If you are here to run the system rather than contribute to the monorepo, start with the flow in this README: install dependencies, start the manager, inspect the runtime state, then call it through the packaged client or skill package.
 
-This repository is currently focused on public GitHub readiness rather than adding new runtime behavior. The goal of the root README is to help a first-time visitor understand what exists today, how the workspaces are organized, and which commands prove the monorepo still works locally.
+## What you can use from this repository
 
-## Who this repository is for
+This repository currently exposes four user-facing package surfaces:
 
-- Engineers evaluating the current monorepo shape before reading source files.
-- Contributors who want the real local verification path before making changes.
-- Agent-host integrators looking for the current logic-analyzer package entrypoint and the resource-manager packages it depends on.
+- `@listenai/resource-manager` - starts the HTTP service, serves the dashboard, exposes inventory and lease APIs, and owns the DSLogic `libsigrok` runtime boundary.
+- `@listenai/resource-client` - provides the `HttpResourceManager` client for talking to that HTTP service from scripts, hosts, or other packages.
+- `@listenai/skill-logic-analyzer` - provides the packaged logic-analyzer skill surface for artifact analysis and live capture workflows.
+- `@listenai/contracts` - provides the shared request/result and inventory contracts used across the service, client, and skill package.
 
-## Workspace map
+If you only need one starting point, it is `@listenai/resource-manager`: once that service is running, the other packages plug into it.
 
-The repository uses pnpm workspaces with two top-level ownership boundaries:
+## Quick start
 
-- `packages/resource-manager` - the `@listenai/resource-manager` package, which re-exports the shared contracts together with the in-memory manager, device-provider seam, HTTP app/server helpers, lease management, and test-friendly fake provider. The packaged CLI runtime entrypoint lives at `packages/resource-manager/src/cli.ts`.
-- `packages/skill-logic-analyzer` - the `@listenai/skill-logic-analyzer` package, which exports the canonical logic-analyzer host boundary, package-owned `SKILL.md` and `README.md`, request/result contracts, capture loading helpers, and waveform-analysis surface.
-- `share/contracts` - the `@listenai/contracts` package, which holds the shared resource-manager contracts consumed across the workspace.
-- `share/resource-client` - the `@listenai/resource-client` package, which re-exports the shared contracts plus the `HttpResourceManager` client for calling the resource-manager HTTP API.
-
-Use the package-owned entrypoints under `packages/` and `share/` as the authoritative surfaces to copy into external hosts. The repository root no longer carries its own runtime compatibility barrel.
-
-## Local bootstrap and standard verification
-
-From the repository root, install dependencies and run the same baseline checks used in CI:
+Install dependencies from the repository root:
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm run typecheck
-pnpm run test
-pnpm run build
 ```
 
-These commands match the automated baseline in `.github/workflows/ci.yml` and are the default proof path for the current monorepo.
-
-## Deeper verification paths
-
-If the baseline passes and you need higher-confidence follow-up diagnostics, run:
+Start the resource manager on the default port:
 
 ```bash
-pnpm run verify:s06
-pnpm run verify:s07
-pnpm run verify:m008:s04
+pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
 ```
 
-`verify:m008:s04` is the current top-level assembled seam for the multi-provider runtime baseline. It reruns the focused S01/S02/S03 proof groups so canonical identity, aggregated `inventoryScope` metadata, dashboard truth, and provider-dispatched live capture stay aligned from the repository root.
+For a route-only smoke test without DSLogic hardware, start it with the fake provider:
 
-Treat these as deeper diagnostics rather than the default path for every change. Contributor expectations and repo-specific verification details live in `CONTRIBUTING.md`; Chinese readers can use `CONTRIBUTING.zh-CN.md`.
+```bash
+pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --provider fake --host 127.0.0.1 --port 7600
+```
 
-For advanced manual runtime checks, the packaged resource-manager CLI entrypoint is `packages/resource-manager/src/cli.ts`; use `CONTRIBUTING.md` for the repo-root command that starts it without inventing a separate dev entrypoint.
+Once it is running, these are the first endpoints to check:
 
-## Where to look next
+```bash
+curl http://127.0.0.1:7600/health
+curl http://127.0.0.1:7600/inventory
+curl http://127.0.0.1:7600/dashboard-snapshot
+```
 
-- `CONTRIBUTING.md` - contributor bootstrap, verification expectations, and repo-specific diagnostics.
-- `.github/workflows/ci.yml` - the GitHub Actions baseline for install, typecheck, test, and build.
-- `packages/skill-logic-analyzer/README.md` - canonical host-facing guidance for the logic-analyzer package.
-- `packages/skill-logic-analyzer/SKILL.md` - the packaged skill descriptor shipped to Claude Code and Codex installs.
-- `integration/` - repo-level integration, end-to-end, and script-contract proofs for assembled package boundaries.
+Open `http://127.0.0.1:7600/` in a browser when you want the packaged dashboard rather than raw JSON.
 
-## Repository focus right now
+## Using `@listenai/resource-manager`
 
-M008 establishes the current multi-provider control-plane baseline: the packaged resource-manager, dashboard, and skill-driven HTTP workflow now preserve provider-scoped canonical identity across mixed providers without falling back to a fake single-provider story. If you are browsing the repo for the first time, start with the workspace-owned packages above, then use the root verification commands to confirm the documented story matches local reality.
+Use the packaged service when you need one authoritative process to track devices, allocations, leases, backend readiness, and dashboard state.
 
-M009 is the follow-on milestone for replacing the DSLogic compatibility adapter with a native DSLogic runtime boundary. Until that lands, treat the current provider-dispatched seam plus `pnpm run verify:m008:s04` as the authoritative closeout path.
+Common routes:
+
+- `GET /health` - liveness only
+- `GET /inventory` - full inventory snapshot with backend readiness and diagnostics
+- `POST /inventory/refresh` - refresh provider state and return the full snapshot
+- `GET /devices` - compatibility device list only
+- `POST /allocate` - allocate a device for a skill owner
+- `POST /heartbeat` - extend an active lease
+- `POST /release` - release a device
+- `POST /capture/live` - run the live capture path through the shared contracts
+- `GET /dashboard-snapshot` and `GET /dashboard-events` - browser/operator truth surfaces
+
+Use the package README for the full operator path, API examples, and runtime semantics:
+
+- `packages/resource-manager/README.md`
+- `packages/resource-manager/README.zh-CN.md`
+
+## Using `@listenai/resource-client`
+
+Use the HTTP client when your host or script should talk to a running manager instead of importing server internals.
+
+Example:
+
+```ts
+import { HttpResourceManager } from "@listenai/resource-client";
+
+const manager = new HttpResourceManager({
+  baseUrl: "http://127.0.0.1:7600",
+  ownerSkillId: "logic-analyzer"
+});
+
+const snapshot = await manager.getInventorySnapshot();
+console.log(snapshot.backendReadiness);
+```
+
+This is the right package for:
+
+- host integrations that connect to a remote or local manager over HTTP
+- scripts that need inventory, allocation, lease, or live-capture calls
+- skill packages that should depend on the public service boundary instead of server internals
+
+## Using `@listenai/skill-logic-analyzer`
+
+Use the logic-analyzer package when you want one packaged workflow that either:
+
+- analyzes an existing capture artifact, or
+- requests a live capture through the manager/client seam and returns normalized analysis output
+
+Example package entrypoint:
+
+```ts
+import { runGenericLogicAnalyzer } from "@listenai/skill-logic-analyzer";
+import { HttpResourceManager } from "@listenai/resource-client";
+
+const resourceManager = new HttpResourceManager({
+  baseUrl: "http://127.0.0.1:7600",
+  ownerSkillId: "logic-analyzer"
+});
+
+const result = await runGenericLogicAnalyzer(resourceManager, request);
+```
+
+Important runtime behavior:
+
+- artifact mode keeps the workflow offline and analyzes provided capture text
+- live mode allocates a device and captures through the manager boundary
+- a successful live run does not auto-release the device; callers should end the session explicitly when done
+- malformed HTTP payloads should surface as parser/transport errors rather than synthetic typed failures
+
+Use the package-owned docs for request shapes, cleanup expectations, installer commands, and host support notes:
+
+- `packages/skill-logic-analyzer/README.md`
+- `packages/skill-logic-analyzer/SKILL.md`
+
+## Which package should you start with?
+
+- If you need a running service and dashboard, start with `@listenai/resource-manager`.
+- If you already have a running manager and need programmatic access, start with `@listenai/resource-client`.
+- If you want a ready-made logic-analyzer workflow, start with `@listenai/skill-logic-analyzer`.
+- If you need shared TypeScript contracts for custom integrations, use `@listenai/contracts` alongside the client or skill package.
+
+## Verification for users
+
+If you want to confirm the packaged user path still works from the repository root, run:
+
+```bash
+pnpm run verify:m009:s04
+pnpm run verify:m009:s05
+pnpm run verify:m009
+```
+
+What these prove:
+
+- `verify:m009:s04` - dashboard, browser, and operator-facing docs stay aligned with `libsigrok` runtime truth
+- `verify:m009:s05` - the assembled resource-manager and logic-analyzer HTTP path works end to end
+- `verify:m009` - the full M009 verification chain passes from the authoritative repo root
+
+## If you are contributing instead
+
+This README is intentionally user-facing. For workspace layout, CI-style repo checks, and contributor workflow details, use:
+
+- `CONTRIBUTING.md`
+- `CONTRIBUTING.zh-CN.md`
+- `.github/workflows/ci.yml`
