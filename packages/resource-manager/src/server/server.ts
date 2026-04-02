@@ -10,6 +10,8 @@ export interface ServerOptions {
   manager: SnapshotResourceManager;
   leaseManager: LeaseManager;
   scanIntervalMs?: number;
+  inventoryPollIntervalMs?: number;
+  leaseScanIntervalMs?: number;
 }
 
 export interface ServerStartInfo {
@@ -36,6 +38,32 @@ function toStartInfo(server: { address(): string | AddressInfo | null }, fallbac
   };
 }
 
+function createInventoryChangeFingerprint(
+  snapshot: Awaited<ReturnType<SnapshotResourceManager["getInventorySnapshot"]>>
+) {
+  return JSON.stringify({
+    inventoryScope: snapshot.inventoryScope,
+    devices: snapshot.devices.map((device) => ({
+      deviceId: device.deviceId,
+      label: device.label,
+      capabilityType: device.capabilityType,
+      connectionState: device.connectionState,
+      readiness: device.readiness,
+      providerKind: device.providerKind ?? null,
+      backendKind: device.backendKind ?? null,
+      diagnostics: device.diagnostics ?? [],
+      canonicalIdentity: device.canonicalIdentity ?? null,
+      dslogic: device.dslogic ?? null
+    })),
+    backendReadiness: snapshot.backendReadiness.map((backend) => ({
+      backendKind: backend.backendKind,
+      readiness: backend.readiness,
+      diagnostics: backend.diagnostics
+    })),
+    diagnostics: snapshot.diagnostics
+  });
+}
+
 export function createServer(options: ServerOptions) {
   const dashboardLiveUpdates = createDashboardLiveUpdates(
     options.manager,
@@ -44,10 +72,14 @@ export function createServer(options: ServerOptions) {
   const app = createApp(options.manager, options.leaseManager, {
     dashboardLiveUpdates
   });
-  const scanIntervalMs = options.scanIntervalMs ?? 10000;
+  const defaultIntervalMs = options.scanIntervalMs ?? 10000;
+  const inventoryPollIntervalMs = options.inventoryPollIntervalMs ?? defaultIntervalMs;
+  const leaseScanIntervalMs = options.leaseScanIntervalMs ?? defaultIntervalMs;
 
   let server: ReturnType<typeof serve> | null = null;
-  let scanInterval: ReturnType<typeof setInterval> | null = null;
+  let inventoryPollInterval: ReturnType<typeof setInterval> | null = null;
+  let leaseScanInterval: ReturnType<typeof setInterval> | null = null;
+  let lastInventoryFingerprint: string | null = null;
 
   return {
     async start(): Promise<ServerStartInfo> {
@@ -84,10 +116,28 @@ export function createServer(options: ServerOptions) {
         activeServer.once("listening", onListening);
       });
 
-      await options.manager.refreshInventorySnapshot();
+      const initialInventory = await options.manager.refreshInventorySnapshot();
+      lastInventoryFingerprint = createInventoryChangeFingerprint(initialInventory);
 
-      if (!scanInterval) {
-        scanInterval = setInterval(() => {
+      if (!inventoryPollInterval) {
+        inventoryPollInterval = setInterval(() => {
+          void options.manager
+            .refreshInventorySnapshot()
+            .then(async (snapshot) => {
+              const nextFingerprint = createInventoryChangeFingerprint(snapshot);
+              if (lastInventoryFingerprint !== nextFingerprint) {
+                lastInventoryFingerprint = nextFingerprint;
+                await dashboardLiveUpdates.publish("inventory-refreshed");
+              }
+            })
+            .catch((error) => {
+              console.error("[dashboard-live] failed to refresh inventory:", error);
+            });
+        }, inventoryPollIntervalMs);
+      }
+
+      if (!leaseScanInterval) {
+        leaseScanInterval = setInterval(() => {
           const expiredCount = options.leaseManager.scanExpired((lease) => {
             console.log(`Lease expired for device ${lease.deviceId}`);
             void options.manager
@@ -109,17 +159,22 @@ export function createServer(options: ServerOptions) {
           if (expiredCount > 0) {
             console.log(`Released ${expiredCount} expired lease(s)`);
           }
-        }, scanIntervalMs);
+        }, leaseScanIntervalMs);
       }
 
       console.log(`Server listening on ${startInfo.url}`);
       return startInfo;
     },
     stop() {
-      if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
+      if (inventoryPollInterval) {
+        clearInterval(inventoryPollInterval);
+        inventoryPollInterval = null;
       }
+      if (leaseScanInterval) {
+        clearInterval(leaseScanInterval);
+        leaseScanInterval = null;
+      }
+      lastInventoryFingerprint = null;
       dashboardLiveUpdates.close();
       if (server) {
         server.close();

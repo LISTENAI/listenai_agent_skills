@@ -42,8 +42,10 @@ CLI options:
 - `--host`, `-h`: bind host, defaults to `0.0.0.0` so the dashboard and API are reachable from your LAN; use `127.0.0.1` when you want loopback-only access
 - `--port`, `-p`: bind port, defaults to `7600`
 - `--provider`: device provider, `dslogic` by default, `fake` for local smoke tests
+- `--inventoryPollIntervalMs`: optional inventory refresh cadence in milliseconds; controls how quickly hot-plug changes reach `/inventory`, `/devices`, and `/dashboard-events`
+- `--leaseScanIntervalMs`: optional lease expiry scan cadence in milliseconds; controls how quickly expired allocations are released
 
-The CLI also reads `RESOURCE_MANAGER_PROVIDER`; if both are present, the CLI flag wins.
+The CLI also reads `RESOURCE_MANAGER_PROVIDER`, `RESOURCE_MANAGER_INVENTORY_POLL_INTERVAL_MS`, and `RESOURCE_MANAGER_LEASE_SCAN_INTERVAL_MS`; if both env vars and CLI flags are present, the CLI flags win.
 
 Default `dslogic` startup assumes the host already has the native `libsigrok` runtime available. This README intentionally documents what operators should observe from `/inventory`, `/dashboard-snapshot`, and the browser dashboard when that runtime is healthy, degraded, missing, or unsupported; it does not prescribe platform-specific install commands.
 

@@ -23,6 +23,19 @@ const parseFakeInventorySnapshot = (): InventorySnapshot | undefined => {
   }
 }
 
+const parseOptionalIntervalMs = (rawValue: string | undefined, name: string): number | undefined => {
+  if (!rawValue) {
+    return undefined
+  }
+
+  const parsed = Number.parseInt(rawValue, 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer in milliseconds, received ${rawValue}`)
+  }
+
+  return parsed
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -39,6 +52,14 @@ async function main() {
       provider: {
         type: "string",
         default: process.env.RESOURCE_MANAGER_PROVIDER ?? "dslogic"
+      },
+      inventoryPollIntervalMs: {
+        type: "string",
+        default: process.env.RESOURCE_MANAGER_INVENTORY_POLL_INTERVAL_MS
+      },
+      leaseScanIntervalMs: {
+        type: "string",
+        default: process.env.RESOURCE_MANAGER_LEASE_SCAN_INTERVAL_MS
       }
     }
   })
@@ -47,12 +68,27 @@ async function main() {
   const host = values.host || "0.0.0.0"
   const providerKind = values.provider === "fake" ? "fake" : "dslogic"
   const fakeInventory = providerKind === "fake" ? parseFakeInventorySnapshot() : undefined
+  const inventoryPollIntervalMs = parseOptionalIntervalMs(
+    values.inventoryPollIntervalMs,
+    "inventoryPollIntervalMs"
+  )
+  const leaseScanIntervalMs = parseOptionalIntervalMs(
+    values.leaseScanIntervalMs,
+    "leaseScanIntervalMs"
+  )
 
   const provider = createDeviceProvider({ providerKind, fakeInventory })
   const manager = new InMemoryResourceManager(provider)
   const leaseManager = new LeaseManager()
 
-  const { start, stop } = createServer({ port, host, manager, leaseManager })
+  const { start, stop } = createServer({
+    port,
+    host,
+    manager,
+    leaseManager,
+    inventoryPollIntervalMs,
+    leaseScanIntervalMs,
+  })
 
   await start()
 

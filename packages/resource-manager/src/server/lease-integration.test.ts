@@ -279,7 +279,7 @@ describe("Lease integration tests", () => {
       host: "127.0.0.1",
       manager,
       leaseManager,
-      scanIntervalMs: 10
+      leaseScanIntervalMs: 10
     });
 
     const { url, port } = await start();
@@ -318,6 +318,99 @@ describe("Lease integration tests", () => {
         expect(leases).toEqual([]);
       }, 1000, 20);
     } finally {
+      stop();
+    }
+  });
+  it("live server publishes snapshot updates when inventory devices appear or disappear", async () => {
+    vi.useRealTimers();
+
+    const provider = new FakeDeviceProvider([
+      {
+        deviceId: "dev1",
+        label: "Device 1",
+        capabilityType: "audio",
+        lastSeenAt: "2026-03-26T09:00:00.000Z"
+      }
+    ]);
+    const manager = createResourceManager(provider, {
+      now: () => "2026-03-26T09:00:00.000Z"
+    });
+    const leaseManager = new LeaseManager({ timeoutMs: 5000 });
+    const { start, stop } = createServer({
+      port: 0,
+      host: "127.0.0.1",
+      manager,
+      leaseManager,
+      inventoryPollIntervalMs: 10
+    });
+
+    const { url } = await start();
+    const streamRes = await fetch(`${url}/dashboard-events`, {
+      headers: { accept: "text/event-stream" }
+    });
+    expect(streamRes.status).toBe(200);
+    expect(streamRes.body).not.toBeNull();
+    const events = createSseReader(streamRes.body!);
+
+    try {
+      const initialEvent = await events.readEvent();
+      expect(initialEvent).toMatchObject({
+        event: "snapshot",
+        data: expect.objectContaining({
+          reason: "initial",
+          snapshot: expect.objectContaining({
+            devices: [
+              expect.objectContaining({
+                deviceId: "dev1"
+              })
+            ]
+          })
+        })
+      });
+
+      provider.setConnectedDevices([
+        {
+          deviceId: "dev1",
+          label: "Device 1",
+          capabilityType: "audio",
+          lastSeenAt: "2026-03-26T09:00:00.000Z"
+        },
+        {
+          deviceId: "dev2",
+          label: "Device 2",
+          capabilityType: "audio",
+          lastSeenAt: "2026-03-26T09:00:10.000Z"
+        }
+      ]);
+
+      const insertedEvent = await events.readEvent(2000);
+      expect(insertedEvent).toMatchObject({
+        event: "snapshot",
+        data: expect.objectContaining({
+          reason: "inventory-refreshed",
+          snapshot: expect.objectContaining({
+            devices: expect.arrayContaining([
+              expect.objectContaining({ deviceId: "dev1" }),
+              expect.objectContaining({ deviceId: "dev2" })
+            ])
+          })
+        })
+      });
+
+      provider.setConnectedDevices([]);
+
+      const removedEvent = await events.readEvent(2000);
+      expect(removedEvent).toMatchObject({
+        event: "snapshot",
+        data: expect.objectContaining({
+          reason: "inventory-refreshed",
+          snapshot: expect.objectContaining({
+            devices: []
+          })
+        })
+      });
+    } finally {
+      await events.cancel();
       stop();
     }
   });

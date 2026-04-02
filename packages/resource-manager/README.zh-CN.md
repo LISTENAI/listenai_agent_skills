@@ -42,8 +42,10 @@ CLI 参数：
 - `--host`、`-h`：绑定地址，默认是 `127.0.0.1`
 - `--port`、`-p`：绑定端口，默认是 `7600`
 - `--provider`：设备 provider，默认是 `dslogic`；做本地冒烟检查时可切到 `fake`
+- `--inventoryPollIntervalMs`：可选的 inventory 轮询间隔，单位毫秒；控制插拔变化多久能反映到 `/inventory`、`/devices` 与 `/dashboard-events`
+- `--leaseScanIntervalMs`：可选的 lease 过期扫描间隔，单位毫秒；控制过期分配多久会被自动释放
 
-CLI 也会读取 `RESOURCE_MANAGER_PROVIDER`；如果环境变量和 CLI 参数同时存在，以 CLI 参数为准。
+CLI 也会读取 `RESOURCE_MANAGER_PROVIDER`、`RESOURCE_MANAGER_INVENTORY_POLL_INTERVAL_MS` 和 `RESOURCE_MANAGER_LEASE_SCAN_INTERVAL_MS`；如果环境变量和 CLI 参数同时存在，以 CLI 参数为准。
 
 默认的 `dslogic` 启动路径假设宿主机已经具备原生 `libsigrok` 运行时。本文档重点说明 operator 应该从 `/inventory`、`/dashboard-snapshot` 与浏览器 dashboard 中观察到什么运行时状态，而不是提供平台相关的安装命令。
 
