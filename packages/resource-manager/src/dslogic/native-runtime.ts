@@ -309,6 +309,23 @@ const extractSigrokDeviceId = (line: string, label: string, index: number): stri
   return normalizedLabel.length > 0 ? normalizedLabel : `dslogic-${index + 1}`
 }
 
+const isSigrokDeviceListingLine = (line: string): boolean => {
+  const trimmed = line.trim()
+  const hasDslogicMarker = /\b(dslogic|dreamsourcelab|pango)\b/i.test(trimmed)
+
+  if (!hasDslogicMarker) {
+    return false
+  }
+
+  // Real `sigrok-cli --scan` device rows carry a driver prefix (`driver - label`).
+  // Reject stderr noise like firmware upload failures or `.fw` path fragments.
+  if (/^\S+\s+-\s+.+/.test(trimmed)) {
+    return true
+  }
+
+  return /\b(?:conn|serial|sn|usb|location)=/i.test(trimmed)
+}
+
 const extractSigrokDeviceLabel = (line: string): string | null => {
   const trimmed = line.trim()
 
@@ -322,7 +339,7 @@ const extractSigrokDeviceLabel = (line: string): string | null => {
     return labelMatch[1].trim()
   }
 
-  return /dslogic/i.test(trimmed) ? trimmed : null
+  return isSigrokDeviceListingLine(trimmed) ? trimmed : null
 }
 
 const parseSigrokScanOutput = (
@@ -343,7 +360,7 @@ const parseSigrokScanOutput = (
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
   const hasDeviceListing = lines.some((line) => /devices were found/i.test(line))
-  const dslogicLines = lines.filter((line) => /dslogic|dreamsourcelab|pango/i.test(line))
+  const dslogicLines = lines.filter((line) => isSigrokDeviceListingLine(line))
 
   if (!hasDeviceListing && dslogicLines.length === 0) {
     return null

@@ -202,6 +202,50 @@ describe("native-runtime", () => {
     })
   })
 
+  it("ignores firmware-error stderr noise when parsing sigrok-cli scan devices", async () => {
+    const { runner } = createCommandRunner([
+      {
+        ok: true,
+        stdout: "sigrok-cli 0.7.2\n",
+        stderr: "library path=/opt/homebrew/lib/libsigrok.dylib\n"
+      },
+      {
+        ok: true,
+        stdout: [
+          "The following devices were found:",
+          "dslogic - DreamSourceLab DSLogic Plus with 16 channels: conn=usb:2-3"
+        ].join("\n"),
+        stderr: [
+          "sr: dslogic: Firmware upload failed for device 2.3",
+          "sr: failed to open firmware 'dslogic-plus-fx2.fw'"
+        ].join("\n")
+      }
+    ])
+
+    const runtime = createDslogicNativeRuntime({
+      now: () => checkedAt,
+      getHostOs: () => "darwin",
+      getHostArch: () => "arm64",
+      executeCommand: runner
+    })
+
+    await expect(runtime.probe()).resolves.toMatchObject({
+      runtime: {
+        state: "ready",
+        version: "0.7.2"
+      },
+      devices: [
+        {
+          deviceId: "usb:2-3",
+          label: "DreamSourceLab DSLogic Plus",
+          usbProductId: "0001",
+          variantHint: null
+        }
+      ],
+      diagnostics: []
+    })
+  })
+
   it("maps missing sigrok-cli into the existing missing-runtime diagnostic", async () => {
     const { runner, calls } = createCommandRunner([
       {
