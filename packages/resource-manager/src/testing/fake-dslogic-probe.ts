@@ -33,6 +33,7 @@ export const createDslogicProbeSnapshot = (options: {
   arch?: string
   backendState?: DslogicProbeBackendState
   libraryPath?: string | null
+  binaryPath?: string | null
   version?: string | null
   devices?: readonly DslogicProbeDeviceCandidate[]
   diagnostics?: readonly DslogicProbeDiagnostic[]
@@ -53,8 +54,16 @@ export const createDslogicProbeSnapshot = (options: {
     backend: {
       state: options.backendState ?? "ready",
       libraryPath:
-        options.libraryPath !== undefined ? options.libraryPath : "/usr/local/lib/libsigrok.so",
-      version: options.version !== undefined ? options.version : "0.6.0"
+        options.libraryPath !== undefined
+          ? options.libraryPath
+          : "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+      binaryPath:
+        options.binaryPath !== undefined
+          ? options.binaryPath
+          : (options.libraryPath !== undefined
+              ? options.libraryPath
+              : "/Applications/DSView.app/Contents/MacOS/dsview-cli"),
+      version: options.version !== undefined ? options.version : "1.0.3"
     },
     devices: (options.devices ?? []).map(cloneCandidate),
     diagnostics: (options.diagnostics ?? []).map(cloneDiagnostic)

@@ -400,7 +400,7 @@ export function renderDashboardPage(): string {
             <span class="eyebrow">Read-only operator dashboard</span>
             <h1 id="system-dashboard-title">System dashboard</h1>
             <p>
-              The resource manager browser entrypoint leads with libsigrok runtime truth, then drills
+              The resource manager browser entrypoint leads with dsview-cli runtime truth, then drills
               into occupancy, owner identity, lease timing, and diagnostics without exposing any
               mutating controls beyond a snapshot refresh.
             </p>
@@ -461,12 +461,12 @@ export function renderDashboardPage(): string {
             <div class="section-head">
               <div>
                 <p class="meta-note">Native runtime truth</p>
-                <h2>libsigrok runtime readiness</h2>
+                <h2>dsview-cli runtime readiness</h2>
               </div>
               <p class="meta-note">Probe results grouped by platform and native runtime state.</p>
             </div>
             <div id="backend-readiness" class="list">
-              <p class="empty">No libsigrok runtime readiness data loaded yet.</p>
+              <p class="empty">No dsview-cli runtime readiness data loaded yet.</p>
             </div>
           </section>
 
@@ -587,7 +587,7 @@ function summarizeBackendReadiness(snapshot) {
   if (!snapshot.backendReadiness.length) {
     return {
       value: 'Unknown',
-      detail: 'No libsigrok runtime probes reported',
+      detail: 'No dsview-cli runtime probes reported',
       tone: 'attention'
     };
   }
@@ -595,7 +595,7 @@ function summarizeBackendReadiness(snapshot) {
   if (snapshot.overview.backendMissing > 0) {
     return {
       value: 'Missing',
-      detail: snapshot.overview.backendMissing + ' libsigrok runtime ' + pluralize(snapshot.overview.backendMissing, 'probe') + ' missing',
+      detail: snapshot.overview.backendMissing + ' dsview-cli runtime ' + pluralize(snapshot.overview.backendMissing, 'probe') + ' missing',
       tone: 'error'
     };
   }
@@ -603,7 +603,7 @@ function summarizeBackendReadiness(snapshot) {
   if (snapshot.overview.backendUnsupported > 0) {
     return {
       value: 'Unsupported',
-      detail: snapshot.overview.backendUnsupported + ' libsigrok runtime ' + pluralize(snapshot.overview.backendUnsupported, 'probe') + ' unsupported',
+      detail: snapshot.overview.backendUnsupported + ' dsview-cli runtime ' + pluralize(snapshot.overview.backendUnsupported, 'probe') + ' unsupported',
       tone: 'error'
     };
   }
@@ -611,14 +611,14 @@ function summarizeBackendReadiness(snapshot) {
   if (snapshot.overview.backendDegraded > 0) {
     return {
       value: 'Degraded',
-      detail: snapshot.overview.backendDegraded + ' libsigrok runtime ' + pluralize(snapshot.overview.backendDegraded, 'probe') + ' degraded',
+      detail: snapshot.overview.backendDegraded + ' dsview-cli runtime ' + pluralize(snapshot.overview.backendDegraded, 'probe') + ' degraded',
       tone: 'attention'
     };
   }
 
   return {
     value: 'Ready',
-    detail: snapshot.overview.backendReady + ' libsigrok runtime ' + pluralize(snapshot.overview.backendReady, 'probe') + ' ready',
+    detail: snapshot.overview.backendReady + ' dsview-cli runtime ' + pluralize(snapshot.overview.backendReady, 'probe') + ' ready',
     tone: 'healthy'
   };
 }
@@ -638,8 +638,8 @@ function summarizeSystemStatus(snapshot) {
       tone: 'error',
       label: 'Runtime attention required',
       summary: unavailableOrAbnormal > 0
-        ? unavailableOrAbnormal + ' device ' + pluralize(unavailableOrAbnormal, 'entry', 'entries') + ' unavailable or abnormal, plus libsigrok runtime blockers.'
-        : 'libsigrok runtime blockers are preventing a fully healthy system posture.',
+        ? unavailableOrAbnormal + ' device ' + pluralize(unavailableOrAbnormal, 'entry', 'entries') + ' unavailable or abnormal, plus dsview-cli runtime blockers.'
+        : 'dsview-cli runtime blockers are preventing a fully healthy system posture.',
       unavailableOrAbnormal,
       backend
     };
@@ -650,8 +650,8 @@ function summarizeSystemStatus(snapshot) {
       tone: 'attention',
       label: 'Attention needed',
       summary: usesSimulatedProvider
-        ? 'A fake provider or backend is serving this snapshot, so libsigrok runtime readiness is not being probed.'
-        : 'libsigrok runtime readiness has not reported any probe results yet.',
+        ? 'A fake provider or backend is serving this snapshot, so dsview-cli runtime readiness is not being probed.'
+        : 'dsview-cli runtime readiness has not reported any probe results yet.',
       unavailableOrAbnormal,
       backend
     };
@@ -677,7 +677,7 @@ function summarizeSystemStatus(snapshot) {
   return {
     tone: 'healthy',
     label: 'Healthy',
-    summary: 'Connected devices, libsigrok runtime readiness, and leases all look nominal.',
+    summary: 'Connected devices, dsview-cli runtime readiness, and leases all look nominal.',
     unavailableOrAbnormal,
     backend
   };
@@ -883,7 +883,7 @@ function renderDevices(snapshot) {
 
 function renderBackendReadiness(snapshot) {
   if (!snapshot.backendReadiness.length) {
-    backendReadiness.innerHTML = '<p class="empty">No libsigrok runtime diagnostics reported.</p>';
+    backendReadiness.innerHTML = '<p class="empty">No dsview-cli runtime diagnostics reported.</p>';
     return;
   }
 
@@ -999,7 +999,7 @@ async function loadSnapshot(sourceLabel = 'Updated') {
     systemStatusSummary.textContent = message;
     deviceSummary.textContent = 'Device occupancy unavailable';
     deviceCards.innerHTML = '<p class="empty">Device occupancy could not be loaded.</p>';
-    backendReadiness.innerHTML = '<p class="empty">libsigrok runtime readiness unavailable.</p>';
+    backendReadiness.innerHTML = '<p class="empty">dsview-cli runtime readiness unavailable.</p>';
     diagnostics.innerHTML = '<article class="list-item"><div class="list-item-head"><strong>dashboard-load-failed</strong><span class="badge error">error</span></div><div>' + escapeHtml(message) + '</div></article>';
     setStreamStatus('error', 'Snapshot fetch failed');
   } finally {

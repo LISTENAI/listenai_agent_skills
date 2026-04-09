@@ -28,7 +28,7 @@ describe("DslogicDeviceProvider", () => {
       refreshedAt,
       inventoryScope: {
         providerKinds: ["dslogic"],
-        backendKinds: ["libsigrok"]
+        backendKinds: ["dsview-cli"]
       },
       devices: [
         {
@@ -43,7 +43,7 @@ describe("DslogicDeviceProvider", () => {
           readiness: "ready",
           diagnostics: [],
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           dslogic: {
             family: "dslogic",
             model: "dslogic-plus",
@@ -57,9 +57,9 @@ describe("DslogicDeviceProvider", () => {
       backendReadiness: [
         {
           platform: "linux",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           readiness: "ready",
-          version: "0.6.0",
+          version: "1.0.3",
           checkedAt: refreshedAt,
           diagnostics: []
         }
@@ -96,7 +96,7 @@ describe("DslogicDeviceProvider", () => {
     expect(snapshot.backendReadiness).toEqual([
       {
         platform: "macos",
-        backendKind: "libsigrok",
+        backendKind: "dsview-cli",
         readiness: "missing",
         version: null,
         checkedAt: refreshedAt,
@@ -105,9 +105,9 @@ describe("DslogicDeviceProvider", () => {
             code: "backend-missing-runtime",
             severity: "error",
             target: "backend",
-            message: "libsigrok runtime is not available on macos.",
+            message: "dsview-cli runtime is not available on macos.",
             platform: "macos",
-            backendKind: "libsigrok",
+            backendKind: "dsview-cli",
             backendVersion: null
           }
         ]
@@ -247,7 +247,7 @@ describe("DslogicDeviceProvider", () => {
       deviceId: "logic-pango",
       readiness: "unsupported",
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: {
         variant: "v421-pango",
         usbVendorId: "2a0e",
@@ -261,7 +261,7 @@ describe("DslogicDeviceProvider", () => {
         target: "device",
         message: "Variant V421/Pango (2a0e:0030) is not supported.",
         deviceId: "logic-pango",
-        backendKind: "libsigrok"
+        backendKind: "dsview-cli"
       }
     ])
     expect(snapshot.diagnostics).toContainEqual(device?.diagnostics?.[0])
@@ -286,7 +286,7 @@ describe("DslogicDeviceProvider", () => {
 
     expect(snapshot.backendReadiness[0]).toEqual({
       platform: "linux",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       readiness: "degraded",
       version: null,
       checkedAt: refreshedAt,
@@ -295,9 +295,9 @@ describe("DslogicDeviceProvider", () => {
           code: "backend-runtime-timeout",
           severity: "warning",
           target: "backend",
-          message: "libsigrok runtime probe timed out before readiness was confirmed on linux.",
+          message: "dsview-cli runtime probe timed out before readiness was confirmed on linux.",
           platform: "linux",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           backendVersion: null
         }
       ]
@@ -307,9 +307,9 @@ describe("DslogicDeviceProvider", () => {
       code: "backend-runtime-timeout",
       severity: "warning",
       target: "backend",
-      message: "libsigrok runtime probe timed out before readiness was confirmed on linux.",
+      message: "dsview-cli runtime probe timed out before readiness was confirmed on linux.",
       platform: "linux",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       backendVersion: null,
       deviceId: "logic-ready"
     })
@@ -340,7 +340,7 @@ describe("DslogicDeviceProvider", () => {
     expect(snapshot.backendReadiness).toEqual([
       {
         platform: "macos",
-        backendKind: "libsigrok",
+        backendKind: "dsview-cli",
         readiness: "degraded",
         version: null,
         checkedAt: refreshedAt,
@@ -349,9 +349,9 @@ describe("DslogicDeviceProvider", () => {
             code: "backend-runtime-failed",
             severity: "error",
             target: "backend",
-            message: "libsigrok runtime probe failed on macos.",
+            message: "dsview-cli runtime probe failed on macos.",
             platform: "macos",
-            backendKind: "libsigrok",
+            backendKind: "dsview-cli",
             backendVersion: null
           }
         ]
@@ -373,15 +373,15 @@ describe("DslogicDeviceProvider", () => {
             code: "backend-runtime-failed",
             severity: "error",
             target: "backend",
-            message: "libsigrok runtime probe failed on macos.",
+            message: "dsview-cli runtime probe failed on macos.",
             platform: "macos",
-            backendKind: "libsigrok",
+            backendKind: "dsview-cli",
             backendVersion: null,
             deviceId: "logic-failed"
           }
         ],
         providerKind: "dslogic",
-        backendKind: "libsigrok",
+        backendKind: "dsview-cli",
         dslogic: {
           family: "dslogic",
           model: "dslogic-plus",
@@ -412,13 +412,13 @@ describe("DslogicDeviceProvider", () => {
       refreshedAt,
       inventoryScope: {
         providerKinds: ["dslogic"],
-        backendKinds: ["libsigrok"]
+        backendKinds: ["dsview-cli"]
       },
       devices: [],
       backendReadiness: [
         {
           platform: "macos",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           readiness: "degraded",
           version: null,
           checkedAt: refreshedAt,
@@ -427,9 +427,9 @@ describe("DslogicDeviceProvider", () => {
               code: "backend-runtime-malformed-response",
               severity: "error",
               target: "backend",
-              message: "libsigrok runtime probe returned malformed output on macos.",
+              message: "dsview-cli runtime probe returned malformed output on macos.",
               platform: "macos",
-              backendKind: "libsigrok",
+              backendKind: "dsview-cli",
               backendVersion: null
             }
           ]
@@ -440,9 +440,9 @@ describe("DslogicDeviceProvider", () => {
           code: "backend-runtime-malformed-response",
           severity: "error",
           target: "backend",
-          message: "libsigrok runtime probe returned malformed output on macos.",
+          message: "dsview-cli runtime probe returned malformed output on macos.",
           platform: "macos",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           backendVersion: null
         }
       ]
@@ -500,21 +500,21 @@ describe("DslogicDeviceProvider", () => {
             target: "device",
             message: "Unable to classify DSLogic variant 2a0e:9999.",
             deviceId: "logic-unknown",
-            backendKind: "libsigrok"
+            backendKind: "dsview-cli"
           },
           {
             code: "backend-runtime-malformed-response",
             severity: "error",
             target: "backend",
-            message: "libsigrok runtime probe returned malformed output on macos.",
+            message: "dsview-cli runtime probe returned malformed output on macos.",
             platform: "macos",
-            backendKind: "libsigrok",
+            backendKind: "dsview-cli",
             backendVersion: null,
             deviceId: "logic-unknown"
           }
         ],
         providerKind: "dslogic",
-        backendKind: "libsigrok",
+        backendKind: "dsview-cli",
         dslogic: {
           family: "dslogic",
           model: "dslogic-plus",
@@ -541,21 +541,21 @@ describe("DslogicDeviceProvider", () => {
             target: "device",
             message: "Unable to classify DSLogic variant missing-usb-id.",
             deviceId: "logic-missing-usb",
-            backendKind: "libsigrok"
+            backendKind: "dsview-cli"
           },
           {
             code: "backend-runtime-malformed-response",
             severity: "error",
             target: "backend",
-            message: "libsigrok runtime probe returned malformed output on macos.",
+            message: "dsview-cli runtime probe returned malformed output on macos.",
             platform: "macos",
-            backendKind: "libsigrok",
+            backendKind: "dsview-cli",
             backendVersion: null,
             deviceId: "logic-missing-usb"
           }
         ],
         providerKind: "dslogic",
-        backendKind: "libsigrok",
+        backendKind: "dsview-cli",
         dslogic: {
           family: "dslogic",
           model: "dslogic-plus",
@@ -638,13 +638,13 @@ describe("DslogicDeviceProvider", () => {
       refreshedAt,
       inventoryScope: {
         providerKinds: ["dslogic"],
-        backendKinds: ["libsigrok"]
+        backendKinds: ["dsview-cli"]
       },
       devices: [],
       backendReadiness: [
         {
           platform: "macos",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           readiness: "degraded",
           version: null,
           checkedAt: refreshedAt,
@@ -655,7 +655,7 @@ describe("DslogicDeviceProvider", () => {
               target: "backend",
               message: "DSLogic probe threw: spawn EACCES",
               platform: "macos",
-              backendKind: "libsigrok",
+              backendKind: "dsview-cli",
               backendVersion: null
             }
           ]
@@ -668,7 +668,7 @@ describe("DslogicDeviceProvider", () => {
           target: "backend",
           message: "DSLogic probe threw: spawn EACCES",
           platform: "macos",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           backendVersion: null
         }
       ]

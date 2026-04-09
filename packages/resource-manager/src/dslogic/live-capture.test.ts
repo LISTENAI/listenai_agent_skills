@@ -37,7 +37,7 @@ const createSession = (channelCount = 2): LiveCaptureSession => ({
     readiness: "ready",
     diagnostics: [],
     providerKind: "dslogic",
-    backendKind: "libsigrok",
+    backendKind: "dsview-cli",
     dslogic: {
       family: "dslogic",
       model: "dslogic-plus",
@@ -115,7 +115,7 @@ describe("DSLogic live capture seam", () => {
       capturedRequest = incomingRequest;
       return {
         ok: true,
-        backendVersion: "libsigrok 0.5.2",
+        backendVersion: "1.0.3",
         artifact: {
           sourceName: "logic-1.csv",
           formatHint: "sigrok-csv",
@@ -140,7 +140,7 @@ describe("DSLogic live capture seam", () => {
     expect(result).toMatchObject({
       ok: true,
       providerKind: "dslogic",
-      backendKind: "libsigrok"
+      backendKind: "dsview-cli"
     });
   });
 
@@ -152,7 +152,7 @@ describe("DSLogic live capture seam", () => {
     });
     const nativeCapture = createDslogicNativeLiveCapture(async () => ({
       ok: true,
-      backendVersion: "libsigrok 0.5.2",
+      backendVersion: "1.0.3",
       diagnosticOutput: { text: "capture ready" },
       artifact: {
         sourceName: "logic-1.csv",
@@ -168,7 +168,7 @@ describe("DSLogic live capture seam", () => {
     expect(result).toEqual({
       ok: true,
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       session: request.session,
       requestedAt: "2026-03-30T10:00:05.000Z",
       artifact: {
@@ -254,7 +254,7 @@ describe("DSLogic live capture seam", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.diagnostics.details).toEqual([
-        "Expected backendKind libsigrok.",
+        "Expected backendKind dsview-cli.",
         "Accepted live capture sessions must include DSLogic identity details."
       ]);
     }
@@ -266,10 +266,10 @@ describe("DSLogic live capture seam", () => {
       ok: false,
       kind: "runtime-unavailable",
       phase: "prepare-runtime",
-      message: "libsigrok runtime is not available on macos.",
+      message: "dsview-cli runtime is not available on macos.",
       backendVersion: null,
       nativeCode: "backend-missing-runtime",
-      details: ["libsigrok library path could not be resolved."]
+      details: ["dsview-cli binary path could not be resolved."]
     }));
 
     const result = await captureDslogicLive(request, { nativeCapture });
@@ -278,20 +278,20 @@ describe("DSLogic live capture seam", () => {
       ok: false,
       reason: "capture-failed",
       kind: "runtime-unavailable",
-      message: "libsigrok runtime is not available on macos.",
+      message: "dsview-cli runtime is not available on macos.",
       session: request.session,
       requestedAt: request.session.startedAt,
       artifactSummary: null,
       diagnostics: {
         phase: "prepare-runtime",
         providerKind: "dslogic",
-        backendKind: "libsigrok",
+        backendKind: "dsview-cli",
         backendVersion: null,
         timeoutMs: 15000,
         nativeCode: "backend-missing-runtime",
         captureOutput: null,
         diagnosticOutput: null,
-        details: ["libsigrok library path could not be resolved."],
+        details: ["dsview-cli binary path could not be resolved."],
         diagnostics: []
       }
     });
@@ -306,8 +306,8 @@ describe("DSLogic live capture seam", () => {
       ok: false,
       kind: "timeout",
       phase: "capture",
-      message: "libsigrok capture timed out.",
-      backendVersion: "libsigrok 0.5.2",
+      message: "dsview-cli capture timed out.",
+      backendVersion: "1.0.3",
       timeoutMs: 3_000,
       captureOutput: { text: captureOutput },
       diagnosticOutput: { text: "still waiting" }
@@ -321,7 +321,7 @@ describe("DSLogic live capture seam", () => {
       kind: "timeout",
       diagnostics: {
         phase: "capture",
-        backendVersion: "libsigrok 0.5.2",
+        backendVersion: "1.0.3",
         timeoutMs: 3_000,
         captureOutput: {
           kind: "text",
@@ -343,8 +343,8 @@ describe("DSLogic live capture seam", () => {
       ok: false,
       kind: "capture-failed",
       phase: "capture",
-      message: "libsigrok failed to arm the device.",
-      backendVersion: "libsigrok 0.5.2",
+      message: "dsview-cli failed to arm the device.",
+      backendVersion: "1.0.3",
       nativeCode: "SR_ERR_BUSY",
       diagnosticOutput: { text: "device busy" }
     }));
@@ -357,7 +357,7 @@ describe("DSLogic live capture seam", () => {
       kind: "capture-failed",
       diagnostics: {
         phase: "capture",
-        backendVersion: "libsigrok 0.5.2",
+        backendVersion: "1.0.3",
         nativeCode: "SR_ERR_BUSY",
         diagnosticOutput: {
           kind: "text",
@@ -371,7 +371,7 @@ describe("DSLogic live capture seam", () => {
     const request = createLiveCaptureRequest(createSession(2));
     const nativeCapture = createDslogicNativeLiveCapture(async () => ({
       ok: true,
-      backendVersion: "libsigrok 0.5.2",
+      backendVersion: "1.0.3",
       diagnosticOutput: { text: "capture complete" },
       artifact: {
         sourceName: "logic-1.csv",
@@ -401,8 +401,8 @@ describe("DSLogic live capture seam", () => {
       diagnostics: {
         phase: "collect-artifact",
         providerKind: "dslogic",
-        backendKind: "libsigrok",
-        backendVersion: "libsigrok 0.5.2",
+        backendKind: "dsview-cli",
+        backendVersion: "1.0.3",
         timeoutMs: 15000,
         nativeCode: null,
         captureOutput: null,

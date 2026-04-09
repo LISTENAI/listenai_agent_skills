@@ -11,7 +11,7 @@ const dslogicSnapshot: InventorySnapshot = {
   refreshedAt,
   inventoryScope: {
     providerKinds: ["dslogic"],
-    backendKinds: ["libsigrok"]
+    backendKinds: ["dsview-cli"]
   },
   devices: [
     {
@@ -26,7 +26,7 @@ const dslogicSnapshot: InventorySnapshot = {
       readiness: "ready",
       diagnostics: [],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: {
         family: "dslogic",
         model: "dslogic-plus",
@@ -53,11 +53,11 @@ const dslogicSnapshot: InventorySnapshot = {
           target: "device",
           message: "Variant V421/Pango is not supported.",
           deviceId: "logic-unsupported",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: {
         family: "dslogic",
         model: "dslogic-plus",
@@ -71,7 +71,7 @@ const dslogicSnapshot: InventorySnapshot = {
   backendReadiness: [
     {
       platform: "macos",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       readiness: "missing",
       version: null,
       checkedAt: refreshedAt,
@@ -80,9 +80,9 @@ const dslogicSnapshot: InventorySnapshot = {
           code: "backend-missing-runtime",
           severity: "error",
           target: "backend",
-          message: "libsigrok runtime is not available on macos.",
+          message: "dsview-cli runtime is not available on macos.",
           platform: "macos",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ]
     }
@@ -92,9 +92,9 @@ const dslogicSnapshot: InventorySnapshot = {
       code: "backend-missing-runtime",
       severity: "error",
       target: "backend",
-      message: "libsigrok runtime is not available on macos.",
+      message: "dsview-cli runtime is not available on macos.",
       platform: "macos",
-      backendKind: "libsigrok"
+      backendKind: "dsview-cli"
     }
   ]
 };
@@ -103,7 +103,7 @@ const mixedProviderInventory: InventorySnapshot = {
   refreshedAt,
   inventoryScope: {
     providerKinds: ["dslogic", "fake"],
-    backendKinds: ["libsigrok", "fake"]
+    backendKinds: ["dsview-cli", "fake"]
   },
   devices: [
     {
@@ -121,13 +121,13 @@ const mixedProviderInventory: InventorySnapshot = {
           code: "backend-runtime-timeout",
           severity: "warning",
           target: "device",
-          message: "libsigrok capture path is slow.",
+          message: "dsview-cli capture path is slow.",
           deviceId: "logic-collision",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       canonicalIdentity: {
         providerKind: "dslogic",
         providerDeviceId: "collision-001",
@@ -168,7 +168,7 @@ const mixedProviderInventory: InventorySnapshot = {
   backendReadiness: [
     {
       platform: "macos",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       readiness: "degraded",
       version: "2.0.0",
       checkedAt: refreshedAt,
@@ -177,9 +177,9 @@ const mixedProviderInventory: InventorySnapshot = {
           code: "backend-runtime-timeout",
           severity: "warning",
           target: "backend",
-          message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
+          message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
           platform: "macos",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ]
     },
@@ -197,9 +197,9 @@ const mixedProviderInventory: InventorySnapshot = {
       code: "backend-runtime-timeout",
       severity: "warning",
       target: "backend",
-      message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
+      message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
       platform: "macos",
-      backendKind: "libsigrok"
+      backendKind: "dsview-cli"
     }
   ]
 };
@@ -208,7 +208,7 @@ const dashboardSnapshotInventory: InventorySnapshot = {
   refreshedAt,
   inventoryScope: {
     providerKinds: ["dslogic"],
-    backendKinds: ["libsigrok"]
+    backendKinds: ["dsview-cli"]
   },
   devices: [
     {
@@ -223,7 +223,7 @@ const dashboardSnapshotInventory: InventorySnapshot = {
       readiness: "ready",
       diagnostics: [],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: null
     },
     {
@@ -238,7 +238,7 @@ const dashboardSnapshotInventory: InventorySnapshot = {
       readiness: "ready",
       diagnostics: [],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: null
     },
     {
@@ -258,11 +258,11 @@ const dashboardSnapshotInventory: InventorySnapshot = {
           target: "device",
           message: "Capture path is slower than expected.",
           deviceId: "logic-degraded",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: null
     },
     {
@@ -282,18 +282,18 @@ const dashboardSnapshotInventory: InventorySnapshot = {
           target: "device",
           message: "Unsupported hardware variant.",
           deviceId: "logic-unsupported",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: null
     }
   ],
   backendReadiness: [
     {
       platform: "macos",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       readiness: "missing",
       version: null,
       checkedAt: refreshedAt,
@@ -302,9 +302,9 @@ const dashboardSnapshotInventory: InventorySnapshot = {
           code: "backend-missing-runtime",
           severity: "error",
           target: "backend",
-          message: "libsigrok runtime is not available on macos.",
+          message: "dsview-cli runtime is not available on macos.",
           platform: "macos",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ]
     }
@@ -314,9 +314,9 @@ const dashboardSnapshotInventory: InventorySnapshot = {
       code: "backend-missing-runtime",
       severity: "error",
       target: "backend",
-      message: "libsigrok runtime is not available on macos.",
+      message: "dsview-cli runtime is not available on macos.",
       platform: "macos",
-      backendKind: "libsigrok"
+      backendKind: "dsview-cli"
     }
   ]
 };
@@ -430,7 +430,7 @@ describe("Hono app routes", () => {
     expect(body).toContain("Owner identity");
     expect(body).toContain("Lease timing");
     expect(body).toContain("A fake provider or backend is serving this snapshot");
-    expect(body).toContain("libsigrok runtime readiness has not reported any probe results yet.");
+    expect(body).toContain("dsview-cli runtime readiness has not reported any probe results yet.");
   });
 
   it("GET /favicon.ico returns 204 so the dashboard loads without failed requests", async () => {
@@ -679,8 +679,8 @@ describe("Hono app routes", () => {
       }))
     ).toEqual([
       {
-        backendKind: "libsigrok",
-        diagnosticBackendKinds: ["libsigrok"]
+        backendKind: "dsview-cli",
+        diagnosticBackendKinds: ["dsview-cli"]
       },
       {
         backendKind: "fake",
@@ -962,7 +962,7 @@ describe("Hono app routes", () => {
       refreshedAt,
       inventoryScope: {
         providerKinds: ["dslogic"],
-        backendKinds: ["libsigrok"]
+        backendKinds: ["dsview-cli"]
       },
       devices: [],
       backendReadiness: dslogicSnapshot.backendReadiness,

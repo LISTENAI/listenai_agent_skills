@@ -6,6 +6,8 @@ import {
   BACKEND_READINESS_STATES,
   CONNECTION_STATES,
   DEVICE_READINESS_STATES,
+  DSLOGIC_BACKEND_KIND,
+  DSLOGIC_PROVIDER_KIND,
   INVENTORY_BACKEND_KINDS,
   INVENTORY_DIAGNOSTIC_CODES,
   INVENTORY_DIAGNOSTIC_SEVERITIES,
@@ -17,6 +19,8 @@ import {
   type AllocationRequest,
   type AllocationResult,
   type DeviceRecord,
+  type DslogicBackendIdentity,
+  type InventoryBackendKind,
   type InventorySnapshot,
   type LiveCaptureResult,
   type ReleaseFailure,
@@ -51,11 +55,11 @@ describe("resource manager contract", () => {
           target: "device",
           message: "Variant classification is pending.",
           deviceId: "logic-1",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: {
         family: "dslogic",
         model: "dslogic-plus",
@@ -83,11 +87,11 @@ describe("resource manager contract", () => {
           target: "device",
           message: "Variant classification is pending.",
           deviceId: "logic-1",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ],
       providerKind: "dslogic",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       dslogic: {
         family: "dslogic",
         model: "dslogic-plus",
@@ -126,7 +130,7 @@ describe("resource manager contract", () => {
       "unsupported"
     ]);
     expect(INVENTORY_PROVIDER_KINDS).toEqual(["fake", "dslogic"]);
-    expect(INVENTORY_BACKEND_KINDS).toEqual(["fake", "libsigrok"]);
+    expect(INVENTORY_BACKEND_KINDS).toEqual(["fake", "dsview-cli"]);
     expect(INVENTORY_PLATFORMS).toEqual(["linux", "macos", "windows"]);
     expect(INVENTORY_DIAGNOSTIC_SEVERITIES).toEqual([
       "info",
@@ -147,6 +151,20 @@ describe("resource manager contract", () => {
       "device-unsupported-variant",
       "device-runtime-malformed-response"
     ]);
+  });
+
+  it("pins DSLogic contract identity to dsview-cli without legacy aliases", () => {
+    expect(DSLOGIC_PROVIDER_KIND).toBe("dslogic");
+    expect(DSLOGIC_BACKEND_KIND).toBe("dsview-cli");
+    expect(INVENTORY_DIAGNOSTIC_CODES.some((code) => code.includes("libsigrok"))).toBe(
+      false
+    );
+
+    expectTypeOf<Extract<InventoryBackendKind, "libsigrok">>().toEqualTypeOf<never>();
+    expectTypeOf<DslogicBackendIdentity>().toEqualTypeOf<{
+      providerKind: "dslogic";
+      backendKind: "dsview-cli";
+    }>();
   });
 
   it("keeps request, result, and snapshot contracts discriminated and additive", () => {
@@ -227,13 +245,13 @@ describe("fake device provider snapshot seam", () => {
       refreshedAt,
       inventoryScope: {
         providerKinds: ["dslogic"],
-        backendKinds: ["libsigrok"]
+        backendKinds: ["dsview-cli"]
       },
       devices: [],
       backendReadiness: [
         {
           platform: "macos",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           readiness: "missing",
           version: null,
           checkedAt: refreshedAt,
@@ -242,9 +260,9 @@ describe("fake device provider snapshot seam", () => {
               code: "backend-missing-runtime",
               severity: "error",
               target: "backend",
-              message: "libsigrok runtime is not available on macos.",
+              message: "dsview-cli runtime is not available on macos.",
               platform: "macos",
-              backendKind: "libsigrok"
+              backendKind: "dsview-cli"
             }
           ]
         }
@@ -254,9 +272,9 @@ describe("fake device provider snapshot seam", () => {
           code: "backend-missing-runtime",
           severity: "error",
           target: "backend",
-          message: "libsigrok runtime is not available on macos.",
+          message: "dsview-cli runtime is not available on macos.",
           platform: "macos",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ]
     };
@@ -272,7 +290,7 @@ describe("fake device provider snapshot seam", () => {
       refreshedAt,
       inventoryScope: {
         providerKinds: ["dslogic"],
-        backendKinds: ["libsigrok"]
+        backendKinds: ["dsview-cli"]
       },
       devices: [
         {
@@ -287,7 +305,7 @@ describe("fake device provider snapshot seam", () => {
           readiness: "ready",
           diagnostics: [],
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           dslogic: {
             family: "dslogic",
             model: "dslogic-plus",
@@ -314,11 +332,11 @@ describe("fake device provider snapshot seam", () => {
               target: "backend",
               message: "Backend probe timed out before capabilities were confirmed.",
               deviceId: "logic-degraded",
-              backendKind: "libsigrok"
+              backendKind: "dsview-cli"
             }
           ],
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           dslogic: {
             family: "dslogic",
             model: "dslogic-plus",
@@ -345,11 +363,11 @@ describe("fake device provider snapshot seam", () => {
               target: "device",
               message: "Variant V421/Pango is not supported.",
               deviceId: "logic-unsupported",
-              backendKind: "libsigrok"
+              backendKind: "dsview-cli"
             }
           ],
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           dslogic: {
             family: "dslogic",
             model: "dslogic-plus",
@@ -363,7 +381,7 @@ describe("fake device provider snapshot seam", () => {
       backendReadiness: [
         {
           platform: "linux",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           readiness: "ready",
           version: "1.3.1",
           checkedAt: refreshedAt,
@@ -707,7 +725,7 @@ describe("in-memory resource manager", () => {
       refreshedAt: connectedAt,
       inventoryScope: {
         providerKinds: ["dslogic"],
-        backendKinds: ["libsigrok"]
+        backendKinds: ["dsview-cli"]
       },
       devices: [
         {
@@ -727,11 +745,11 @@ describe("in-memory resource manager", () => {
               target: "device",
               message: "DSLogic capture path is slow.",
               deviceId: "logic-collision",
-              backendKind: "libsigrok"
+              backendKind: "dsview-cli"
             }
           ],
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           canonicalIdentity: {
             providerKind: "dslogic",
             providerDeviceId: "collision-001",
@@ -743,7 +761,7 @@ describe("in-memory resource manager", () => {
       backendReadiness: [
         {
           platform: "macos",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           readiness: "degraded",
           version: "2.0.0",
           checkedAt: connectedAt,
@@ -752,9 +770,9 @@ describe("in-memory resource manager", () => {
               code: "backend-runtime-timeout",
               severity: "warning",
               target: "backend",
-              message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
+              message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
               platform: "macos",
-              backendKind: "libsigrok"
+              backendKind: "dsview-cli"
             }
           ]
         }
@@ -764,9 +782,9 @@ describe("in-memory resource manager", () => {
           code: "backend-runtime-timeout",
           severity: "warning",
           target: "backend",
-          message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
+          message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
           platform: "macos",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ]
     };
@@ -842,7 +860,7 @@ describe("in-memory resource manager", () => {
     expect(snapshot.refreshedAt).toBe(connectedAt);
     expect(snapshot.inventoryScope).toEqual({
       providerKinds: ["dslogic", "fake"],
-      backendKinds: ["libsigrok", "fake"]
+      backendKinds: ["dsview-cli", "fake"]
     });
     expect(snapshot.devices.map((device) => device.canonicalIdentity?.canonicalKey)).toEqual([
       "dslogic:collision-001",
@@ -967,7 +985,7 @@ describe("in-memory resource manager", () => {
       refreshedAt: connectedAt,
       inventoryScope: {
         providerKinds: ["dslogic"],
-        backendKinds: ["libsigrok"]
+        backendKinds: ["dsview-cli"]
       },
       devices: [
         {
@@ -982,7 +1000,7 @@ describe("in-memory resource manager", () => {
           readiness: "ready",
           diagnostics: [],
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           dslogic: null
         },
         {
@@ -1002,11 +1020,11 @@ describe("in-memory resource manager", () => {
               target: "device",
               message: "Backend probe timed out before capabilities were confirmed.",
               deviceId: "logic-degraded",
-              backendKind: "libsigrok"
+              backendKind: "dsview-cli"
             }
           ],
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           dslogic: null
         },
         {
@@ -1026,18 +1044,18 @@ describe("in-memory resource manager", () => {
               target: "device",
               message: "Variant V421/Pango is not supported.",
               deviceId: "logic-unsupported",
-              backendKind: "libsigrok"
+              backendKind: "dsview-cli"
             }
           ],
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           dslogic: null
         }
       ],
       backendReadiness: [
         {
           platform: "macos",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           readiness: "degraded",
           version: null,
           checkedAt: connectedAt,
@@ -1046,9 +1064,9 @@ describe("in-memory resource manager", () => {
               code: "backend-runtime-timeout",
               severity: "warning",
               target: "backend",
-              message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
+              message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
               platform: "macos",
-              backendKind: "libsigrok"
+              backendKind: "dsview-cli"
             }
           ]
         }
@@ -1058,9 +1076,9 @@ describe("in-memory resource manager", () => {
           code: "backend-runtime-timeout",
           severity: "warning",
           target: "backend",
-          message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
+          message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
           platform: "macos",
-          backendKind: "libsigrok"
+          backendKind: "dsview-cli"
         }
       ]
     };
@@ -1105,7 +1123,7 @@ describe("in-memory resource manager live capture dispatch", () => {
     refreshedAt,
     inventoryScope: {
       providerKinds: ["dslogic"],
-      backendKinds: ["libsigrok"]
+      backendKinds: ["dsview-cli"]
     },
     devices: [
       {
@@ -1120,7 +1138,7 @@ describe("in-memory resource manager live capture dispatch", () => {
         readiness: "ready",
         diagnostics: [],
         providerKind: "dslogic",
-        backendKind: "libsigrok",
+        backendKind: "dsview-cli",
         dslogic: {
           family: "dslogic",
           model: "dslogic-plus",
@@ -1134,7 +1152,7 @@ describe("in-memory resource manager live capture dispatch", () => {
     backendReadiness: [
       {
         platform: "macos",
-        backendKind: "libsigrok",
+        backendKind: "dsview-cli",
         readiness: "ready",
         version: "1.3.1",
         checkedAt: refreshedAt,
@@ -1190,7 +1208,7 @@ describe("in-memory resource manager live capture dispatch", () => {
       },
       liveCapture: {
         supportsDevice(device: DeviceRecord) {
-          return device.providerKind === "dslogic" && device.backendKind === "libsigrok";
+          return device.providerKind === "dslogic" && device.backendKind === "dsview-cli";
         },
         async liveCapture(
           request: Parameters<NonNullable<SnapshotResourceManager["liveCapture"]>>[0]
@@ -1199,7 +1217,7 @@ describe("in-memory resource manager live capture dispatch", () => {
           return {
             ok: true,
             providerKind: "dslogic",
-            backendKind: "libsigrok",
+            backendKind: "dsview-cli",
             session: request.session,
             requestedAt: request.requestedAt,
             artifact: {
@@ -1238,7 +1256,7 @@ describe("in-memory resource manager live capture dispatch", () => {
     expect(result).toMatchObject({
       ok: true,
       providerKind: "dslogic",
-      backendKind: "libsigrok"
+      backendKind: "dsview-cli"
     });
     expect(capturedRequest?.session.device.allocationState).toBe("allocated");
     expect(capturedRequest?.session.device.ownerSkillId).toBe("skill-alpha");
@@ -1269,16 +1287,16 @@ describe("in-memory resource manager live capture dispatch", () => {
       diagnostics: {
         phase: "validate-session",
         providerKind: "dslogic",
-        backendKind: "libsigrok"
+        backendKind: "dsview-cli"
       }
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.message).toContain("provider dslogic");
-      expect(result.message).toContain("backend libsigrok");
+      expect(result.message).toContain("backend dsview-cli");
       expect(result.diagnostics.details).toEqual([
         "No registered live-capture provider accepted provider dslogic.",
-        "No registered live-capture provider accepted backend libsigrok.",
+        "No registered live-capture provider accepted backend dsview-cli.",
         "Configure a provider-specific live-capture handler for the authoritative device runtime."
       ]);
     }
@@ -1393,7 +1411,7 @@ describe("in-memory resource manager live capture dispatch", () => {
     await expect(manager.liveCapture(request)).resolves.toMatchObject({
       ok: true,
       providerKind: "dslogic",
-      backendKind: "libsigrok"
+      backendKind: "dsview-cli"
     });
   });
 });

@@ -1,13 +1,15 @@
-import type {
-  AllocationRequest,
-  AllocationResult,
-  DeviceRecord,
-  InventoryBackendKind,
-  InventoryDiagnostic,
-  InventoryProviderKind,
-  InventorySnapshot,
-  ReleaseRequest,
-  ReleaseResult
+import {
+  DSLOGIC_BACKEND_KIND,
+  DSLOGIC_PROVIDER_KIND,
+  type AllocationRequest,
+  type AllocationResult,
+  type DeviceRecord,
+  type InventoryBackendKind,
+  type InventoryDiagnostic,
+  type InventoryProviderKind,
+  type InventorySnapshot,
+  type ReleaseRequest,
+  type ReleaseResult
 } from "./contracts.js";
 
 export const LIVE_CAPTURE_FAILURE_PHASES = [
@@ -75,6 +77,11 @@ export interface LiveCaptureStreamSummary {
   textLength: number | null;
   preview: string | null;
   truncated: boolean;
+}
+
+export interface DslogicBackendIdentity {
+  providerKind: typeof DSLOGIC_PROVIDER_KIND;
+  backendKind: typeof DSLOGIC_BACKEND_KIND;
 }
 
 export interface LiveCaptureFailureDiagnostics {

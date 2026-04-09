@@ -19,10 +19,13 @@ export const BACKEND_READINESS_STATES = [
 ] as const;
 export type BackendReadinessState = (typeof BACKEND_READINESS_STATES)[number];
 
-export const INVENTORY_PROVIDER_KINDS = ["fake", "dslogic"] as const;
+export const DSLOGIC_PROVIDER_KIND = "dslogic" as const;
+export const DSLOGIC_BACKEND_KIND = "dsview-cli" as const;
+
+export const INVENTORY_PROVIDER_KINDS = ["fake", DSLOGIC_PROVIDER_KIND] as const;
 export type InventoryProviderKind = (typeof INVENTORY_PROVIDER_KINDS)[number];
 
-export const INVENTORY_BACKEND_KINDS = ["fake", "libsigrok"] as const;
+export const INVENTORY_BACKEND_KINDS = ["fake", DSLOGIC_BACKEND_KIND] as const;
 export type InventoryBackendKind = (typeof INVENTORY_BACKEND_KINDS)[number];
 
 export const INVENTORY_PLATFORMS = ["linux", "macos", "windows"] as const;
