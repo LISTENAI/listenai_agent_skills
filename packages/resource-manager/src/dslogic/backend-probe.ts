@@ -7,8 +7,10 @@ import type {
 } from "@listenai/contracts"
 import {
   createDslogicNativeRuntime,
+  defaultExecuteCommand,
   resolveInventoryPlatform,
   type CreateDslogicNativeRuntimeOptions,
+  type DslogicNativeCommandRunner,
   type DslogicNativeRuntime,
   type DslogicNativeRuntimeDiagnostic,
   type DslogicNativeRuntimeSnapshot,
@@ -16,7 +18,9 @@ import {
 } from "./native-runtime.js"
 
 export const DSLOGIC_PROVIDER_KIND = "dslogic" as const
-export const DSLOGIC_BACKEND_KIND = "libsigrok" as const
+export const DSLOGIC_BACKEND_KIND = "dsview-cli" as const
+const DEFAULT_HOST_USB_ENUMERATION_TIMEOUT_MS = 3_000
+const DEFAULT_HOST_USB_ENUMERATION_MAX_BUFFER_BYTES = 256 * 1024
 
 export type DslogicProbeBackendState = DslogicNativeRuntimeState
 
@@ -41,6 +45,7 @@ export interface DslogicBackendProbeSnapshot {
   backend: {
     state: DslogicProbeBackendState
     libraryPath: string | null
+    binaryPath?: string | null
     version: string | null
   }
   devices: readonly DslogicProbeDeviceCandidate[]
@@ -57,6 +62,10 @@ export interface CreateDslogicBackendProbeOptions {
   getHostPlatform?: CreateDslogicNativeRuntimeOptions["getHostOs"]
   getHostArch?: CreateDslogicNativeRuntimeOptions["getHostArch"]
   probeRuntime?: CreateDslogicNativeRuntimeOptions["probeRuntime"]
+  executeCommand?: DslogicNativeCommandRunner
+  enumerateHostDevices?: (
+    snapshot: DslogicNativeRuntimeSnapshot
+  ) => Promise<readonly DslogicProbeDeviceCandidate[]>
 }
 
 export interface ClassifiedDslogicCandidate {
@@ -217,7 +226,7 @@ export const mapBackendProbeDiagnostics = (
         createBackendDiagnostic(
           snapshot,
           "backend-missing-runtime",
-          `libsigrok runtime is not available on ${snapshot.platform}.`
+          `dsview-cli runtime is not available on ${snapshot.platform}.`
         )
       ]
     case "timeout":
@@ -225,7 +234,7 @@ export const mapBackendProbeDiagnostics = (
         createBackendDiagnostic(
           snapshot,
           "backend-runtime-timeout",
-          `libsigrok runtime probe timed out before readiness was confirmed on ${snapshot.platform}.`
+          `dsview-cli runtime probe timed out before readiness was confirmed on ${snapshot.platform}.`
         )
       ]
     case "failed":
@@ -233,7 +242,7 @@ export const mapBackendProbeDiagnostics = (
         createBackendDiagnostic(
           snapshot,
           "backend-runtime-failed",
-          `libsigrok runtime probe failed on ${snapshot.platform}.`
+          `dsview-cli runtime probe failed on ${snapshot.platform}.`
         )
       ]
     case "malformed":
@@ -241,7 +250,7 @@ export const mapBackendProbeDiagnostics = (
         createBackendDiagnostic(
           snapshot,
           "backend-runtime-malformed-response",
-          `libsigrok runtime probe returned malformed output on ${snapshot.platform}.`
+          `dsview-cli runtime probe returned malformed output on ${snapshot.platform}.`
         )
       ]
     case "unsupported-os":
@@ -249,7 +258,7 @@ export const mapBackendProbeDiagnostics = (
         createBackendDiagnostic(
           snapshot,
           "backend-unsupported-os",
-          `libsigrok probing is not supported on ${snapshot.platform}.`
+          `dsview-cli probing is not supported on ${snapshot.platform}.`
         )
       ]
     default:
@@ -339,12 +348,66 @@ const mapNativeRuntimeSnapshot = (
   host: { ...snapshot.host },
   backend: {
     state: snapshot.runtime.state,
-    libraryPath: snapshot.runtime.libraryPath,
+    libraryPath: snapshot.runtime.binaryPath ?? snapshot.runtime.libraryPath,
+    binaryPath: snapshot.runtime.binaryPath ?? snapshot.runtime.libraryPath,
     version: snapshot.runtime.version
   },
   devices: snapshot.devices.map((device) => ({ ...device })),
   diagnostics: snapshot.diagnostics.map((diagnostic) => ({ ...diagnostic }))
 })
+
+const mergeProbeDeviceCandidates = (
+  ...collections: ReadonlyArray<readonly DslogicProbeDeviceCandidate[]>
+): DslogicProbeDeviceCandidate[] => {
+  const seenDeviceIds = new Set<string>()
+  const merged: DslogicProbeDeviceCandidate[] = []
+
+  for (const collection of collections) {
+    for (const candidate of collection) {
+      if (seenDeviceIds.has(candidate.deviceId)) {
+        continue
+      }
+
+      seenDeviceIds.add(candidate.deviceId)
+      merged.push({ ...candidate })
+    }
+  }
+
+  return merged
+}
+
+const createDefaultHostDeviceEnumerator = (options: {
+  executeCommand: DslogicNativeCommandRunner
+}): NonNullable<CreateDslogicBackendProbeOptions["enumerateHostDevices"]> =>
+  async (snapshot) => {
+    if (snapshot.host.platform !== "macos") {
+      return []
+    }
+
+    const result = await options.executeCommand(
+      "system_profiler",
+      ["SPUSBDataType", "-json"],
+      {
+        timeoutMs: DEFAULT_HOST_USB_ENUMERATION_TIMEOUT_MS,
+        maxBufferBytes: DEFAULT_HOST_USB_ENUMERATION_MAX_BUFFER_BYTES
+      }
+    )
+
+    if (!result.ok) {
+      return []
+    }
+
+    const output = result.stdout.trim().length > 0 ? result.stdout : result.stderr
+    if (output.trim().length === 0) {
+      return []
+    }
+
+    try {
+      return parseMacosUsbDevices(output, snapshot.checkedAt)
+    } catch {
+      return []
+    }
+  }
 
 export const createDslogicBackendProbe = (
   options: CreateDslogicBackendProbeOptions = {}
@@ -355,10 +418,22 @@ export const createDslogicBackendProbe = (
     getHostArch: options.getHostArch,
     probeRuntime: options.probeRuntime
   })
+  const enumerateHostDevices =
+    options.enumerateHostDevices ??
+    createDefaultHostDeviceEnumerator({
+      executeCommand: options.executeCommand ?? defaultExecuteCommand
+    })
 
   return {
     async probeInventory(): Promise<DslogicBackendProbeSnapshot> {
-      return mapNativeRuntimeSnapshot(await nativeRuntime.probe())
+      const runtimeSnapshot = await nativeRuntime.probe()
+      const baseSnapshot = mapNativeRuntimeSnapshot(runtimeSnapshot)
+      const hostDevices = await enumerateHostDevices(runtimeSnapshot)
+
+      return {
+        ...baseSnapshot,
+        devices: mergeProbeDeviceCandidates(baseSnapshot.devices, hostDevices)
+      }
     }
   }
 }

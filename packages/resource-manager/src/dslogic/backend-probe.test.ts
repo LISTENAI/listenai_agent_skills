@@ -68,39 +68,17 @@ describe("backend-probe", () => {
     ])
   })
 
-  it("maps libsigrok runtime metadata into the backend probe snapshot", async () => {
+  it("maps dsview-cli runtime metadata into the backend probe snapshot and layers host USB discovery", async () => {
     const probeRuntime: NonNullable<CreateDslogicBackendProbeOptions["probeRuntime"]> = async (
       host
     ) => ({
       runtime: {
         state: "ready",
-        libraryPath: host.platform === "macos" ? "/opt/homebrew/lib/libsigrok.dylib" : null,
-        version: "0.7.2"
+        libraryPath: host.platform === "macos" ? "/Applications/DSView.app/Contents/MacOS/dsview-cli" : null,
+        binaryPath: host.platform === "macos" ? "/Applications/DSView.app/Contents/MacOS/dsview-cli" : null,
+        version: "1.0.3"
       },
-      devices: [
-        {
-          deviceId: "usb:1-4",
-          label: "DSLogic Plus",
-          lastSeenAt: checkedAt,
-          capabilityType: "logic-analyzer",
-          usbVendorId: "2a0e",
-          usbProductId: "0001",
-          model: "dslogic-plus",
-          modelDisplayName: "DSLogic Plus",
-          variantHint: null
-        },
-        {
-          deviceId: "pango-002",
-          label: "DSLogic V421/Pango",
-          lastSeenAt: checkedAt,
-          capabilityType: "logic-analyzer",
-          usbVendorId: "2a0e",
-          usbProductId: "0030",
-          model: "dslogic-plus",
-          modelDisplayName: "DSLogic V421/Pango",
-          variantHint: "v421-pango"
-        }
-      ],
+      devices: [],
       diagnostics: []
     })
 
@@ -108,7 +86,8 @@ describe("backend-probe", () => {
       now: () => checkedAt,
       getHostPlatform: () => "darwin",
       getHostArch: () => "arm64",
-      probeRuntime
+      probeRuntime,
+      enumerateHostDevices: async () => parseMacosUsbDevices(macosUsbSnapshot, checkedAt)
     })
 
     await expect(probe.probeInventory()).resolves.toEqual({
@@ -121,12 +100,13 @@ describe("backend-probe", () => {
       },
       backend: {
         state: "ready",
-        libraryPath: "/opt/homebrew/lib/libsigrok.dylib",
-        version: "0.7.2"
+        libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        version: "1.0.3"
       },
       devices: [
         {
-          deviceId: "usb:1-4",
+          deviceId: "dsl-classic-001",
           label: "DSLogic Plus",
           lastSeenAt: checkedAt,
           capabilityType: "logic-analyzer",
@@ -137,7 +117,7 @@ describe("backend-probe", () => {
           variantHint: null
         },
         {
-          deviceId: "pango-002",
+          deviceId: "0x00200000 / 8",
           label: "DSLogic V421/Pango",
           lastSeenAt: checkedAt,
           capabilityType: "logic-analyzer",
@@ -145,7 +125,7 @@ describe("backend-probe", () => {
           usbProductId: "0030",
           model: "dslogic-plus",
           modelDisplayName: "DSLogic V421/Pango",
-          variantHint: "v421-pango"
+          variantHint: null
         }
       ],
       diagnostics: []
@@ -156,16 +136,18 @@ describe("backend-probe", () => {
     const probeRuntime: NonNullable<CreateDslogicBackendProbeOptions["probeRuntime"]> = async () => ({
       runtime: {
         state: "timeout",
-        libraryPath: "/opt/homebrew/lib/libsigrok.dylib",
-        version: "0.7.2"
+        libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        version: "1.0.3"
       },
       devices: [],
       diagnostics: [
         {
           code: "backend-runtime-timeout",
-          message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
-          libraryPath: "/opt/homebrew/lib/libsigrok.dylib",
-          backendVersion: "0.7.2"
+          message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
+          libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+          binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+          backendVersion: "1.0.3"
         }
       ]
     })
@@ -188,16 +170,18 @@ describe("backend-probe", () => {
       },
       backend: {
         state: "timeout",
-        libraryPath: "/opt/homebrew/lib/libsigrok.dylib",
-        version: "0.7.2"
+        libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        version: "1.0.3"
       },
       devices: [],
       diagnostics: [
         {
           code: "backend-runtime-timeout",
-          message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
-          libraryPath: "/opt/homebrew/lib/libsigrok.dylib",
-          backendVersion: "0.7.2"
+          message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
+          libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+          binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+          backendVersion: "1.0.3"
         }
       ]
     })
@@ -206,22 +190,23 @@ describe("backend-probe", () => {
         code: "backend-runtime-timeout",
         severity: "warning",
         target: "backend",
-        message: "libsigrok runtime probe timed out before readiness was confirmed on macos.",
+        message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
         platform: "macos",
-        backendKind: "libsigrok",
-        backendVersion: "0.7.2"
+        backendKind: "dsview-cli",
+        backendVersion: "1.0.3"
       }
     ])
   })
 
-  it("keeps DSLogic candidates visible when libsigrok is missing", async () => {
+  it("keeps DSLogic candidates visible when dsview-cli is missing", async () => {
     const probeRuntime: NonNullable<CreateDslogicBackendProbeOptions["probeRuntime"]> = async () => ({
       runtime: {
         state: "missing",
         libraryPath: null,
+        binaryPath: null,
         version: null
       },
-      devices: parseMacosUsbDevices(macosUsbSnapshot, checkedAt),
+      devices: [],
       diagnostics: []
     })
 
@@ -229,7 +214,8 @@ describe("backend-probe", () => {
       now: () => checkedAt,
       getHostPlatform: () => "darwin",
       getHostArch: () => "arm64",
-      probeRuntime
+      probeRuntime,
+      enumerateHostDevices: async () => parseMacosUsbDevices(macosUsbSnapshot, checkedAt)
     })
 
     await expect(probe.probeInventory()).resolves.toMatchObject({
@@ -242,6 +228,7 @@ describe("backend-probe", () => {
       backend: {
         state: "missing",
         libraryPath: null,
+        binaryPath: null,
         version: null
       },
       devices: [

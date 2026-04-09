@@ -10,11 +10,11 @@ import type {
 } from "@listenai/contracts"
 import type { DslogicProbeDeviceCandidate } from "./backend-probe.js"
 
-export const DSLOGIC_NATIVE_BACKEND_KIND = "libsigrok" as const
+export const DSLOGIC_NATIVE_BACKEND_KIND = "dsview-cli" as const
 export const DSLOGIC_SUPPORTED_HOST_PLATFORMS = ["linux", "macos", "windows"] as const
 export const DEFAULT_DSLOGIC_RUNTIME_PROBE_TIMEOUT_MS = 3_000
 const DEFAULT_DSLOGIC_RUNTIME_PROBE_MAX_BUFFER_BYTES = 64 * 1024
-const DEFAULT_SIGROK_CLI_PATH = "sigrok-cli"
+const DEFAULT_DSVIEW_CLI_PATH = "dsview-cli"
 
 export type DslogicNativeRuntimeState =
   | "ready"
@@ -28,7 +28,9 @@ export interface DslogicNativeRuntimeDiagnostic {
   code: InventoryDiagnosticCode
   message: string
   deviceId?: string
+  // `libraryPath` stays as a compatibility alias while the seam transitions to bundle-aware naming.
   libraryPath?: string | null
+  binaryPath?: string | null
   backendVersion?: string | null
 }
 
@@ -44,6 +46,7 @@ export interface DslogicNativeRuntimeSnapshot {
   runtime: {
     state: DslogicNativeRuntimeState
     libraryPath: string | null
+    binaryPath?: string | null
     version: string | null
   }
   devices: readonly DslogicProbeDeviceCandidate[]
@@ -116,16 +119,16 @@ export type DslogicNativeCommandRunner = (
   }
 ) => Promise<DslogicNativeCommandResult>
 
-interface ParsedSigrokVersion {
+interface ParsedDsviewVersion {
   version: string
-  libraryPath: string | null
+  binaryPath: string | null
 }
 
 export interface CreateDslogicNativeRuntimeOptions {
   now?: () => string
   getHostOs?: () => NodeJS.Platform
   getHostArch?: () => NodeJS.Architecture
-  sigrokCliPath?: string
+  dsviewCliPath?: string
   probeTimeoutMs?: number
   executeCommand?: DslogicNativeCommandRunner
   probeRuntime?: (
@@ -156,6 +159,11 @@ const SUPPORTED_HOST_OPERATING_SYSTEMS = new Set<NodeJS.Platform | string>([
   "windows"
 ])
 
+const normalizeRuntimePath = (runtime: {
+  libraryPath?: string | null
+  binaryPath?: string | null
+}): string | null => runtime.binaryPath ?? runtime.libraryPath ?? null
+
 const createUnsupportedSnapshot = (
   checkedAt: string,
   host: DslogicNativeHostMetadata
@@ -165,6 +173,7 @@ const createUnsupportedSnapshot = (
   runtime: {
     state: "unsupported-os",
     libraryPath: null,
+    binaryPath: null,
     version: null
   },
   devices: [],
@@ -184,29 +193,34 @@ const combineCommandOutput = (
 ): string => [result.stdout, result.stderr].filter((chunk) => chunk.trim().length > 0).join("\n")
 
 const createRuntimeDiagnostic = (
-  host: DslogicNativeHostMetadata,
   code: InventoryDiagnosticCode,
   message: string,
-  runtime: { libraryPath: string | null; version: string | null }
-): DslogicNativeRuntimeDiagnostic => ({
-  code,
-  message,
-  libraryPath: runtime.libraryPath,
-  backendVersion: runtime.version
-})
+  runtime: { libraryPath?: string | null; binaryPath?: string | null; version: string | null }
+): DslogicNativeRuntimeDiagnostic => {
+  const binaryPath = normalizeRuntimePath(runtime)
+
+  return {
+    code,
+    message,
+    libraryPath: binaryPath,
+    binaryPath,
+    backendVersion: runtime.version
+  }
+}
 
 const createRuntimeResult = (
   host: DslogicNativeHostMetadata,
   state: Exclude<DslogicNativeRuntimeState, "unsupported-os">,
-  runtime: { libraryPath: string | null; version: string | null },
+  runtime: { libraryPath?: string | null; binaryPath?: string | null; version: string | null },
   code?: InventoryDiagnosticCode
 ): Pick<DslogicNativeRuntimeSnapshot, "runtime" | "devices" | "diagnostics"> => {
+  const binaryPath = normalizeRuntimePath(runtime)
   const messageByCode: Record<InventoryDiagnosticCode, string> = {
-    "backend-missing-runtime": `libsigrok runtime is not available on ${host.platform}.`,
-    "backend-unsupported-os": `libsigrok probing is not supported on ${host.platform}.`,
-    "backend-runtime-failed": `libsigrok runtime probe failed on ${host.platform}.`,
-    "backend-runtime-timeout": `libsigrok runtime probe timed out before readiness was confirmed on ${host.platform}.`,
-    "backend-runtime-malformed-response": `libsigrok runtime probe returned malformed output on ${host.platform}.`,
+    "backend-missing-runtime": `dsview-cli runtime is not available on ${host.platform}.`,
+    "backend-unsupported-os": `dsview-cli probing is not supported on ${host.platform}.`,
+    "backend-runtime-failed": `dsview-cli runtime probe failed on ${host.platform}.`,
+    "backend-runtime-timeout": `dsview-cli runtime probe timed out before readiness was confirmed on ${host.platform}.`,
+    "backend-runtime-malformed-response": `dsview-cli runtime probe returned malformed output on ${host.platform}.`,
     "device-unsupported-variant": `Unsupported DSLogic variant detected on ${host.platform}.`,
     "device-runtime-malformed-response": `Unable to classify DSLogic variant on ${host.platform}.`
   }
@@ -214,12 +228,13 @@ const createRuntimeResult = (
   return {
     runtime: {
       state,
-      libraryPath: runtime.libraryPath,
+      libraryPath: binaryPath,
+      binaryPath,
       version: runtime.version
     },
     devices: [],
     diagnostics: code
-      ? [createRuntimeDiagnostic(host, code, messageByCode[code], runtime)]
+      ? [createRuntimeDiagnostic(code, messageByCode[code], { ...runtime, binaryPath })]
       : []
   }
 }
@@ -274,141 +289,51 @@ const defaultExecuteCommand: DslogicNativeCommandRunner = (
     )
   })
 
-const parseSigrokVersionOutput = (output: string): ParsedSigrokVersion | null => {
-  const versionMatch = output.match(/\bsigrok-cli\s+([0-9][^\s]*)/i)
-  if (!versionMatch) {
+const looksLikeFileSystemPath = (value: string): boolean => {
+  const trimmed = value.trim()
+  return (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("./") ||
+    trimmed.startsWith("../") ||
+    trimmed.startsWith("~") ||
+    trimmed.includes("\\") ||
+    /^[A-Za-z]:[\\/]/.test(trimmed)
+  )
+}
+
+const parseDsviewVersionOutput = (
+  output: string,
+  commandPath?: string
+): ParsedDsviewVersion | null => {
+  const versionMatch =
+    output.match(/\bdsview-cli\b(?:\s+version)?\s+v?([0-9][^\s]*)/i) ??
+    output.match(/\bdsview\s+cli\b(?:\s+version)?\s+v?([0-9][^\s]*)/i)
+
+  if (!versionMatch?.[1]) {
     return null
   }
 
-  const directLibraryPathMatch = output.match(/(\/[\w./-]*libsigrok[\w./-]*\.(?:dylib|so(?:\.[0-9]+)*|dll))/i)
-  const libraryDirectoryMatch = output.match(/\b(?:libdir|library(?:\s+path)?)\s*[:=]\s*(\/[\w./-]+)/i)
+  const unixBinaryMatch = output.match(/(?:^|\s)(\/[\w./-]*dsview-cli(?:\.exe)?)(?=$|\s)/i)
+  const windowsBinaryMatch = output.match(/([A-Za-z]:\\[^\r\n]*?dsview-cli(?:\.exe)?)/i)
+  const explicitPath =
+    typeof commandPath === "string" && looksLikeFileSystemPath(commandPath)
+      ? commandPath.trim()
+      : null
 
   return {
-    version: versionMatch[1] ?? null,
-    libraryPath: directLibraryPathMatch?.[1] ?? libraryDirectoryMatch?.[1] ?? null
+    version: versionMatch[1],
+    binaryPath: unixBinaryMatch?.[1] ?? windowsBinaryMatch?.[1] ?? explicitPath
   }
-}
-
-const extractSigrokDeviceId = (line: string, label: string, index: number): string => {
-  const serialMatch = line.match(/\b(?:serial|sn)\s*=\s*([^,\s)]+)/i)
-  if (serialMatch?.[1]) {
-    return serialMatch[1]
-  }
-
-  const connectionMatch = line.match(/\b(?:conn|connection|location|usb)\s*=\s*([^,\s)]+)/i)
-  if (connectionMatch?.[1]) {
-    return connectionMatch[1]
-  }
-
-  const normalizedLabel = label
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-
-  return normalizedLabel.length > 0 ? normalizedLabel : `dslogic-${index + 1}`
-}
-
-const isSigrokDeviceListingLine = (line: string): boolean => {
-  const trimmed = line.trim()
-  const hasDslogicMarker = /\b(dslogic|dreamsourcelab|pango)\b/i.test(trimmed)
-
-  if (!hasDslogicMarker) {
-    return false
-  }
-
-  // Real `sigrok-cli --scan` device rows carry a driver prefix (`driver - label`).
-  // Reject stderr noise like firmware upload failures or `.fw` path fragments.
-  if (/^\S+\s+-\s+.+/.test(trimmed)) {
-    return true
-  }
-
-  return /\b(?:conn|serial|sn|usb|location)=/i.test(trimmed)
-}
-
-const extractSigrokDeviceLabel = (line: string): string | null => {
-  const trimmed = line.trim()
-
-  const dashMatch = trimmed.match(/-\s*(.+?)(?:\s+with\b|\s*\(|\s*:\s*(?:conn|serial|sn|usb|location)=|$)/i)
-  if (dashMatch?.[1]) {
-    return dashMatch[1].trim()
-  }
-
-  const labelMatch = trimmed.match(/(DSLogic[^:(]*?(?:Pango)?)(?:\s*\(|\s*:\s*(?:conn|serial|sn|usb|location)=|$)/i)
-  if (labelMatch?.[1]) {
-    return labelMatch[1].trim()
-  }
-
-  return isSigrokDeviceListingLine(trimmed) ? trimmed : null
-}
-
-const parseSigrokScanOutput = (
-  output: string,
-  detectedAt: string
-): DslogicProbeDeviceCandidate[] | null => {
-  const trimmed = output.trim()
-  if (trimmed.length === 0) {
-    return null
-  }
-
-  if (/\bno\s+(?:devices|supported hardware)\s+found\b/i.test(trimmed)) {
-    return []
-  }
-
-  const lines = trimmed
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-  const hasDeviceListing = lines.some((line) => /devices were found/i.test(line))
-  const dslogicLines = lines.filter((line) => isSigrokDeviceListingLine(line))
-
-  if (!hasDeviceListing && dslogicLines.length === 0) {
-    return null
-  }
-
-  const seenDeviceIds = new Set<string>()
-  const devices: DslogicProbeDeviceCandidate[] = []
-
-  for (const [index, line] of dslogicLines.entries()) {
-    const label = extractSigrokDeviceLabel(line) ?? "DSLogic device"
-    const variantHint = /v421|pango/i.test(`${label} ${line}`) ? "v421-pango" : null
-    const usbProductId = variantHint === "v421-pango" ? "0030" : "0001"
-    const deviceId = extractSigrokDeviceId(line, label, index)
-
-    if (seenDeviceIds.has(deviceId)) {
-      continue
-    }
-
-    seenDeviceIds.add(deviceId)
-    devices.push({
-      deviceId,
-      label,
-      lastSeenAt: detectedAt,
-      capabilityType: "logic-analyzer",
-      usbVendorId: "2a0e",
-      usbProductId,
-      model: "dslogic-plus",
-      modelDisplayName: label,
-      variantHint
-    })
-  }
-
-  return devices
 }
 
 const createDefaultProbeRuntime = (options: {
-  sigrokCliPath: string
+  dsviewCliPath: string
   probeTimeoutMs: number
   executeCommand: DslogicNativeCommandRunner
-  now: () => string
 }): NonNullable<CreateDslogicNativeRuntimeOptions["probeRuntime"]> =>
   async (host) => {
-    if (host.platform !== "macos") {
-      return createRuntimeResult(host, "missing", { libraryPath: null, version: null })
-    }
-
     const versionResult = await options.executeCommand(
-      options.sigrokCliPath,
+      options.dsviewCliPath,
       ["--version"],
       {
         timeoutMs: options.probeTimeoutMs,
@@ -419,56 +344,50 @@ const createDefaultProbeRuntime = (options: {
     if (!versionResult.ok) {
       switch (versionResult.reason) {
         case "missing":
-          return createRuntimeResult(host, "missing", { libraryPath: null, version: null }, "backend-missing-runtime")
+          return createRuntimeResult(
+            host,
+            "missing",
+            { libraryPath: null, binaryPath: null, version: null },
+            "backend-missing-runtime"
+          )
         case "timeout":
-          return createRuntimeResult(host, "timeout", { libraryPath: null, version: null }, "backend-runtime-timeout")
+          return createRuntimeResult(
+            host,
+            "timeout",
+            { libraryPath: null, binaryPath: null, version: null },
+            "backend-runtime-timeout"
+          )
         default:
-          return createRuntimeResult(host, "failed", { libraryPath: null, version: null }, "backend-runtime-failed")
+          return createRuntimeResult(
+            host,
+            "failed",
+            { libraryPath: null, binaryPath: null, version: null },
+            "backend-runtime-failed"
+          )
       }
     }
 
-    const parsedVersion = parseSigrokVersionOutput(combineCommandOutput(versionResult))
+    const parsedVersion = parseDsviewVersionOutput(
+      combineCommandOutput(versionResult),
+      options.dsviewCliPath
+    )
     if (!parsedVersion) {
       return createRuntimeResult(
         host,
         "malformed",
-        { libraryPath: null, version: null },
+        { libraryPath: null, binaryPath: null, version: null },
         "backend-runtime-malformed-response"
       )
-    }
-
-    const scanResult = await options.executeCommand(
-      options.sigrokCliPath,
-      ["--scan"],
-      {
-        timeoutMs: options.probeTimeoutMs,
-        maxBufferBytes: DEFAULT_DSLOGIC_RUNTIME_PROBE_MAX_BUFFER_BYTES
-      }
-    )
-
-    if (!scanResult.ok) {
-      switch (scanResult.reason) {
-        case "missing":
-          return createRuntimeResult(host, "missing", parsedVersion, "backend-missing-runtime")
-        case "timeout":
-          return createRuntimeResult(host, "timeout", parsedVersion, "backend-runtime-timeout")
-        default:
-          return createRuntimeResult(host, "failed", parsedVersion, "backend-runtime-failed")
-      }
-    }
-
-    const devices = parseSigrokScanOutput(combineCommandOutput(scanResult), options.now())
-    if (!devices) {
-      return createRuntimeResult(host, "malformed", parsedVersion, "backend-runtime-malformed-response")
     }
 
     return {
       runtime: {
         state: "ready",
-        libraryPath: parsedVersion.libraryPath,
+        libraryPath: parsedVersion.binaryPath,
+        binaryPath: parsedVersion.binaryPath,
         version: parsedVersion.version
       },
-      devices,
+      devices: [],
       diagnostics: []
     }
   }
@@ -479,11 +398,14 @@ export const createDslogicNativeRuntime = (
   const now = options.now ?? (() => new Date().toISOString())
   const getHostOs = options.getHostOs ?? (() => process.platform)
   const getHostArch = options.getHostArch ?? (() => process.arch)
+  const configuredBinaryPath = options.dsviewCliPath?.trim()
   const probeRuntime = options.probeRuntime ?? createDefaultProbeRuntime({
-    sigrokCliPath: options.sigrokCliPath ?? DEFAULT_SIGROK_CLI_PATH,
+    dsviewCliPath:
+      configuredBinaryPath && configuredBinaryPath.length > 0
+        ? configuredBinaryPath
+        : DEFAULT_DSVIEW_CLI_PATH,
     probeTimeoutMs: options.probeTimeoutMs ?? DEFAULT_DSLOGIC_RUNTIME_PROBE_TIMEOUT_MS,
-    executeCommand: options.executeCommand ?? defaultExecuteCommand,
-    now
+    executeCommand: options.executeCommand ?? defaultExecuteCommand
   })
 
   return {
@@ -520,6 +442,5 @@ export const createDslogicNativeLiveCaptureBackend = (
 export {
   createDefaultProbeRuntime,
   defaultExecuteCommand,
-  parseSigrokScanOutput,
-  parseSigrokVersionOutput
+  parseDsviewVersionOutput
 }

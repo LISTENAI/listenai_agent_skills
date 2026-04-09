@@ -55,6 +55,7 @@ describe("native-runtime", () => {
       runtime: {
         state: "unsupported-os",
         libraryPath: null,
+        binaryPath: null,
         version: null
       },
       devices: [],
@@ -63,8 +64,15 @@ describe("native-runtime", () => {
     expect(calls).toEqual([])
   })
 
-  it("keeps non-macos hosts explicit without spawning sigrok-cli", async () => {
-    const { runner, calls } = createCommandRunner([])
+  it("probes linux hosts through dsview-cli instead of short-circuiting to missing", async () => {
+    const { runner, calls } = createCommandRunner([
+      {
+        ok: true,
+        stdout: "dsview-cli 1.0.3\n",
+        stderr: ""
+      }
+    ])
+
     const runtime = createDslogicNativeRuntime({
       now: () => checkedAt,
       getHostOs: () => "linux",
@@ -80,32 +88,30 @@ describe("native-runtime", () => {
         arch: "x64"
       },
       runtime: {
-        state: "missing",
+        state: "ready",
         libraryPath: null,
-        version: null
+        binaryPath: null,
+        version: "1.0.3"
       },
       devices: [],
       diagnostics: []
     })
-    expect(calls).toEqual([])
+    expect(calls).toEqual([
+      {
+        command: "dsview-cli",
+        args: ["--version"],
+        timeoutMs: 3_000,
+        maxBufferBytes: 64 * 1024
+      }
+    ])
   })
 
-  it("maps bounded macOS sigrok-cli success into ready runtime metadata and DSLogic candidates", async () => {
+  it("prefers an explicitly configured dsview-cli bundle path over PATH fallback", async () => {
     const { runner, calls } = createCommandRunner([
       {
         ok: true,
-        stdout: "sigrok-cli 0.7.2\n",
-        stderr: "library path=/opt/homebrew/lib/libsigrok.dylib\n"
-      },
-      {
-        ok: true,
-        stdout: [
-          "The following devices were found:",
-          "demo - Demo device with 8 channels: conn=demo",
-          "dslogic - DSLogic Plus with 16 channels: conn=usb:1-4",
-          "dslogic - DSLogic V421/Pango with 16 channels: serial=pango-002"
-        ].join("\n"),
-        stderr: "sr: scan completed\n"
+        stdout: "dsview-cli 1.0.3\n",
+        stderr: "bundle path=/Applications/DSView.app/Contents/MacOS/dsview-cli\n"
       }
     ])
 
@@ -114,6 +120,7 @@ describe("native-runtime", () => {
       getHostOs: () => "darwin",
       getHostArch: () => "arm64",
       executeCommand: runner,
+      dsviewCliPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
       probeTimeoutMs: 1234
     })
 
@@ -126,99 +133,29 @@ describe("native-runtime", () => {
       },
       runtime: {
         state: "ready",
-        libraryPath: "/opt/homebrew/lib/libsigrok.dylib",
-        version: "0.7.2"
-      },
-      devices: [
-        {
-          deviceId: "usb:1-4",
-          label: "DSLogic Plus",
-          lastSeenAt: checkedAt,
-          capabilityType: "logic-analyzer",
-          usbVendorId: "2a0e",
-          usbProductId: "0001",
-          model: "dslogic-plus",
-          modelDisplayName: "DSLogic Plus",
-          variantHint: null
-        },
-        {
-          deviceId: "pango-002",
-          label: "DSLogic V421/Pango",
-          lastSeenAt: checkedAt,
-          capabilityType: "logic-analyzer",
-          usbVendorId: "2a0e",
-          usbProductId: "0030",
-          model: "dslogic-plus",
-          modelDisplayName: "DSLogic V421/Pango",
-          variantHint: "v421-pango"
-        }
-      ],
-      diagnostics: []
-    })
-    expect(calls).toEqual([
-      {
-        command: "sigrok-cli",
-        args: ["--version"],
-        timeoutMs: 1234,
-        maxBufferBytes: 64 * 1024
-      },
-      {
-        command: "sigrok-cli",
-        args: ["--scan"],
-        timeoutMs: 1234,
-        maxBufferBytes: 64 * 1024
-      }
-    ])
-  })
-
-  it("keeps runtime ready when sigrok-cli reports no DSLogic device rows yet", async () => {
-    const { runner } = createCommandRunner([
-      {
-        ok: true,
-        stdout: "sigrok-cli 0.7.1\n",
-        stderr: ""
-      },
-      {
-        ok: true,
-        stdout: "The following devices were found:\nfx2lafw - CWAV USBee SX with 8 channels: conn=1.23\n",
-        stderr: ""
-      }
-    ])
-
-    const runtime = createDslogicNativeRuntime({
-      now: () => checkedAt,
-      getHostOs: () => "darwin",
-      getHostArch: () => "arm64",
-      executeCommand: runner
-    })
-
-    await expect(runtime.probe()).resolves.toMatchObject({
-      runtime: {
-        state: "ready",
-        version: "0.7.1"
+        libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        version: "1.0.3"
       },
       devices: [],
       diagnostics: []
     })
+    expect(calls).toEqual([
+      {
+        command: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
+        args: ["--version"],
+        timeoutMs: 1234,
+        maxBufferBytes: 64 * 1024
+      }
+    ])
   })
 
-  it("ignores firmware-error stderr noise when parsing sigrok-cli scan devices", async () => {
-    const { runner } = createCommandRunner([
+  it("keeps PATH fallback explicit when no bundle path is configured", async () => {
+    const { runner, calls } = createCommandRunner([
       {
         ok: true,
-        stdout: "sigrok-cli 0.7.2\n",
-        stderr: "library path=/opt/homebrew/lib/libsigrok.dylib\n"
-      },
-      {
-        ok: true,
-        stdout: [
-          "The following devices were found:",
-          "dslogic - DreamSourceLab DSLogic Plus with 16 channels: conn=usb:2-3"
-        ].join("\n"),
-        stderr: [
-          "sr: dslogic: Firmware upload failed for device 2.3",
-          "sr: failed to open firmware 'dslogic-plus-fx2.fw'"
-        ].join("\n")
+        stdout: "DSView CLI v1.0.3\n",
+        stderr: "resolved executable /opt/dsview/bin/dsview-cli\n"
       }
     ])
 
@@ -232,21 +169,24 @@ describe("native-runtime", () => {
     await expect(runtime.probe()).resolves.toMatchObject({
       runtime: {
         state: "ready",
-        version: "0.7.2"
+        libraryPath: "/opt/dsview/bin/dsview-cli",
+        binaryPath: "/opt/dsview/bin/dsview-cli",
+        version: "1.0.3"
       },
-      devices: [
-        {
-          deviceId: "usb:2-3",
-          label: "DreamSourceLab DSLogic Plus",
-          usbProductId: "0001",
-          variantHint: null
-        }
-      ],
+      devices: [],
       diagnostics: []
     })
+    expect(calls).toEqual([
+      {
+        command: "dsview-cli",
+        args: ["--version"],
+        timeoutMs: 3_000,
+        maxBufferBytes: 64 * 1024
+      }
+    ])
   })
 
-  it("maps missing sigrok-cli into the existing missing-runtime diagnostic", async () => {
+  it("maps a missing configured dsview-cli bundle into the missing-runtime diagnostic", async () => {
     const { runner, calls } = createCommandRunner([
       {
         ok: false,
@@ -263,7 +203,8 @@ describe("native-runtime", () => {
       now: () => checkedAt,
       getHostOs: () => "darwin",
       getHostArch: () => "arm64",
-      executeCommand: runner
+      executeCommand: runner,
+      dsviewCliPath: "/opt/dsview/bin/dsview-cli"
     })
 
     await expect(runtime.probe()).resolves.toEqual({
@@ -276,14 +217,16 @@ describe("native-runtime", () => {
       runtime: {
         state: "missing",
         libraryPath: null,
+        binaryPath: null,
         version: null
       },
       devices: [],
       diagnostics: [
         {
           code: "backend-missing-runtime",
-          message: "libsigrok runtime is not available on macos.",
+          message: "dsview-cli runtime is not available on macos.",
           libraryPath: null,
+          binaryPath: null,
           backendVersion: null
         }
       ]
@@ -291,12 +234,12 @@ describe("native-runtime", () => {
     expect(calls).toHaveLength(1)
   })
 
-  it("maps macOS probe timeouts into the existing timeout state", async () => {
+  it("maps dsview-cli probe timeouts into the timeout state", async () => {
     const { runner } = createCommandRunner([
       {
         ok: false,
         reason: "timeout",
-        stdout: "sigrok-cli 0.7.2\n",
+        stdout: "dsview-cli 1.0.3\n",
         stderr: "",
         exitCode: null,
         signal: "SIGTERM",
@@ -315,29 +258,25 @@ describe("native-runtime", () => {
       runtime: {
         state: "timeout",
         libraryPath: null,
+        binaryPath: null,
         version: null
       },
       diagnostics: [
         {
           code: "backend-runtime-timeout",
-          message: "libsigrok runtime probe timed out before readiness was confirmed on macos."
+          message: "dsview-cli runtime probe timed out before readiness was confirmed on macos."
         }
       ]
     })
   })
 
-  it("maps non-zero scan failures into the existing failed state while preserving parsed version", async () => {
+  it("maps non-zero dsview-cli failures into the failed state", async () => {
     const { runner } = createCommandRunner([
-      {
-        ok: true,
-        stdout: "sigrok-cli 0.7.2\nlibdir=/opt/homebrew/lib\n",
-        stderr: ""
-      },
       {
         ok: false,
         reason: "failed",
         stdout: "",
-        stderr: "driver init failed",
+        stderr: "bundle bootstrap failed",
         exitCode: 2,
         signal: null,
         nativeCode: 2
@@ -354,26 +293,28 @@ describe("native-runtime", () => {
     await expect(runtime.probe()).resolves.toMatchObject({
       runtime: {
         state: "failed",
-        libraryPath: "/opt/homebrew/lib",
-        version: "0.7.2"
+        libraryPath: null,
+        binaryPath: null,
+        version: null
       },
       diagnostics: [
         {
           code: "backend-runtime-failed",
-          message: "libsigrok runtime probe failed on macos.",
-          libraryPath: "/opt/homebrew/lib",
-          backendVersion: "0.7.2"
+          message: "dsview-cli runtime probe failed on macos.",
+          libraryPath: null,
+          binaryPath: null,
+          backendVersion: null
         }
       ]
     })
   })
 
-  it("rejects truncated version output as malformed without scanning further", async () => {
+  it("rejects malformed dsview-cli version output without inventing readiness", async () => {
     const { runner, calls } = createCommandRunner([
       {
         ok: true,
-        stdout: "sigrok cli version unknown\n",
-        stderr: ""
+        stdout: "bundle ready\n",
+        stderr: "version unknown\n"
       }
     ])
 
@@ -388,52 +329,16 @@ describe("native-runtime", () => {
       runtime: {
         state: "malformed",
         libraryPath: null,
+        binaryPath: null,
         version: null
       },
       diagnostics: [
         {
           code: "backend-runtime-malformed-response",
-          message: "libsigrok runtime probe returned malformed output on macos."
+          message: "dsview-cli runtime probe returned malformed output on macos."
         }
       ]
     })
     expect(calls).toHaveLength(1)
-  })
-
-  it("treats empty scan output as malformed even after a valid version probe", async () => {
-    const { runner } = createCommandRunner([
-      {
-        ok: true,
-        stdout: "sigrok-cli 0.7.2\n",
-        stderr: "library path=/opt/homebrew/lib/libsigrok.dylib\n"
-      },
-      {
-        ok: true,
-        stdout: "",
-        stderr: ""
-      }
-    ])
-
-    const runtime = createDslogicNativeRuntime({
-      now: () => checkedAt,
-      getHostOs: () => "darwin",
-      getHostArch: () => "arm64",
-      executeCommand: runner
-    })
-
-    await expect(runtime.probe()).resolves.toMatchObject({
-      runtime: {
-        state: "malformed",
-        libraryPath: "/opt/homebrew/lib/libsigrok.dylib",
-        version: "0.7.2"
-      },
-      diagnostics: [
-        {
-          code: "backend-runtime-malformed-response",
-          backendVersion: "0.7.2",
-          libraryPath: "/opt/homebrew/lib/libsigrok.dylib"
-        }
-      ]
-    })
   })
 })
