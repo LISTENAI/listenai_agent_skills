@@ -1,27 +1,37 @@
-import type {
-  AllocationFailure,
-  AllocationRequest,
-  AllocationResult,
-  AllocationSuccessWithLease,
-  BackendReadinessRecord,
-  DeviceRecord,
-  DslogicDeviceIdentity,
-  InventoryBackendKind,
-  InventoryDiagnostic,
-  InventoryProviderKind,
-  InventorySnapshot,
-  LiveCaptureArtifact,
-  LiveCaptureArtifactSummary,
-  LiveCaptureFailureDiagnostics,
-  LiveCaptureFailureKind,
-  LiveCaptureRequest,
-  LiveCaptureResult,
-  LiveCaptureSession,
-  LiveCaptureStreamSummary,
-  ReleaseFailure,
-  ReleaseRequest,
-  ReleaseResult,
-  SnapshotResourceManager,
+import {
+  ALLOCATION_STATES,
+  BACKEND_READINESS_STATES,
+  CONNECTION_STATES,
+  DEVICE_READINESS_STATES,
+  INVENTORY_BACKEND_KINDS,
+  INVENTORY_DIAGNOSTIC_CODES,
+  INVENTORY_DIAGNOSTIC_SEVERITIES,
+  INVENTORY_DIAGNOSTIC_TARGETS,
+  INVENTORY_PLATFORMS,
+  INVENTORY_PROVIDER_KINDS,
+  type AllocationFailure,
+  type AllocationRequest,
+  type AllocationResult,
+  type AllocationSuccessWithLease,
+  type BackendReadinessRecord,
+  type DeviceRecord,
+  type DslogicDeviceIdentity,
+  type InventoryBackendKind,
+  type InventoryDiagnostic,
+  type InventoryProviderKind,
+  type InventorySnapshot,
+  type LiveCaptureArtifact,
+  type LiveCaptureArtifactSummary,
+  type LiveCaptureFailureDiagnostics,
+  type LiveCaptureFailureKind,
+  type LiveCaptureRequest,
+  type LiveCaptureResult,
+  type LiveCaptureSession,
+  type LiveCaptureStreamSummary,
+  type ReleaseFailure,
+  type ReleaseRequest,
+  type ReleaseResult,
+  type SnapshotResourceManager,
 } from "@listenai/contracts";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -53,6 +63,24 @@ const readStringArrayField = <T>(
   }
 
   return value.map((entry, index) => mapper(entry, `${path}[${index}]`));
+};
+
+const readInventoryEnum = <T extends string>(
+  value: unknown,
+  path: string,
+  allowed: readonly T[],
+  allowNull = false,
+): T | null => {
+  const parsed = readString(value, path, allowNull);
+  if (parsed === null) {
+    return null;
+  }
+
+  if (allowed.includes(parsed as T)) {
+    return parsed as T;
+  }
+
+  throw new Error(`Malformed inventory snapshot response at ${path}`);
 };
 
 const readLiveCaptureString = (
@@ -95,6 +123,24 @@ const readLiveCaptureBoolean = (value: unknown, path: string): boolean => {
   throw new Error(`Malformed live capture response at ${path}`);
 };
 
+const readLiveCaptureEnum = <T extends string>(
+  value: unknown,
+  path: string,
+  allowed: readonly T[],
+  allowNull = false,
+): T | null => {
+  const parsed = readLiveCaptureString(value, path, allowNull);
+  if (parsed === null) {
+    return null;
+  }
+
+  if (allowed.includes(parsed as T)) {
+    return parsed as T;
+  }
+
+  throw new Error(`Malformed live capture response at ${path}`);
+};
+
 const parseInventoryDiagnostic = (
   value: unknown,
   path: string,
@@ -104,9 +150,13 @@ const parseInventoryDiagnostic = (
   }
 
   const diagnostic: InventoryDiagnostic = {
-    code: readString(value.code, `${path}.code`) as InventoryDiagnostic["code"],
-    severity: readString(value.severity, `${path}.severity`) as InventoryDiagnostic["severity"],
-    target: readString(value.target, `${path}.target`) as InventoryDiagnostic["target"],
+    code: readInventoryEnum(value.code, `${path}.code`, INVENTORY_DIAGNOSTIC_CODES) as InventoryDiagnostic["code"],
+    severity: readInventoryEnum(
+      value.severity,
+      `${path}.severity`,
+      INVENTORY_DIAGNOSTIC_SEVERITIES,
+    ) as InventoryDiagnostic["severity"],
+    target: readInventoryEnum(value.target, `${path}.target`, INVENTORY_DIAGNOSTIC_TARGETS) as InventoryDiagnostic["target"],
     message: readString(value.message, `${path}.message`) as string,
   };
 
@@ -114,12 +164,17 @@ const parseInventoryDiagnostic = (
     diagnostic.deviceId = readString(value.deviceId, `${path}.deviceId`) as string;
   }
   if (value.platform !== undefined) {
-    diagnostic.platform = readString(value.platform, `${path}.platform`) as InventoryDiagnostic["platform"];
+    diagnostic.platform = readInventoryEnum(
+      value.platform,
+      `${path}.platform`,
+      INVENTORY_PLATFORMS,
+    ) as InventoryDiagnostic["platform"];
   }
   if (value.backendKind !== undefined) {
-    diagnostic.backendKind = readString(
+    diagnostic.backendKind = readInventoryEnum(
       value.backendKind,
       `${path}.backendKind`,
+      INVENTORY_BACKEND_KINDS,
     ) as InventoryDiagnostic["backendKind"];
   }
   if (value.backendVersion !== undefined) {
@@ -131,6 +186,25 @@ const parseInventoryDiagnostic = (
   }
 
   return diagnostic;
+};
+
+const parseCanonicalIdentity = (
+  value: unknown,
+  path: string,
+): NonNullable<DeviceRecord["canonicalIdentity"]> => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed inventory snapshot response at ${path}`);
+  }
+
+  return {
+    providerKind: readInventoryEnum(
+      value.providerKind,
+      `${path}.providerKind`,
+      INVENTORY_PROVIDER_KINDS,
+    ) as InventoryProviderKind,
+    providerDeviceId: readString(value.providerDeviceId, `${path}.providerDeviceId`) as string,
+    canonicalKey: readString(value.canonicalKey, `${path}.canonicalKey`) as string,
+  };
 };
 
 const parseDslogicIdentity = (
@@ -164,13 +238,15 @@ const parseDeviceRecord = (value: unknown, path: string): DeviceRecord => {
     deviceId: readString(value.deviceId, `${path}.deviceId`) as string,
     label: readString(value.label, `${path}.label`) as string,
     capabilityType: readString(value.capabilityType, `${path}.capabilityType`) as string,
-    connectionState: readString(
+    connectionState: readInventoryEnum(
       value.connectionState,
       `${path}.connectionState`,
+      CONNECTION_STATES,
     ) as DeviceRecord["connectionState"],
-    allocationState: readString(
+    allocationState: readInventoryEnum(
       value.allocationState,
       `${path}.allocationState`,
+      ALLOCATION_STATES,
     ) as DeviceRecord["allocationState"],
     ownerSkillId: readString(value.ownerSkillId, `${path}.ownerSkillId`, true),
     lastSeenAt: readString(value.lastSeenAt, `${path}.lastSeenAt`, true),
@@ -178,7 +254,11 @@ const parseDeviceRecord = (value: unknown, path: string): DeviceRecord => {
   };
 
   if (value.readiness !== undefined) {
-    record.readiness = readString(value.readiness, `${path}.readiness`) as DeviceRecord["readiness"];
+    record.readiness = readInventoryEnum(
+      value.readiness,
+      `${path}.readiness`,
+      DEVICE_READINESS_STATES,
+    ) as DeviceRecord["readiness"];
   }
   if (value.diagnostics !== undefined) {
     record.diagnostics = readStringArrayField(
@@ -188,16 +268,24 @@ const parseDeviceRecord = (value: unknown, path: string): DeviceRecord => {
     );
   }
   if (value.providerKind !== undefined) {
-    record.providerKind = readString(
+    record.providerKind = readInventoryEnum(
       value.providerKind,
       `${path}.providerKind`,
+      INVENTORY_PROVIDER_KINDS,
     ) as DeviceRecord["providerKind"];
   }
   if (value.backendKind !== undefined) {
-    record.backendKind = readString(
+    record.backendKind = readInventoryEnum(
       value.backendKind,
       `${path}.backendKind`,
+      INVENTORY_BACKEND_KINDS,
     ) as DeviceRecord["backendKind"];
+  }
+  if (value.canonicalIdentity !== undefined) {
+    record.canonicalIdentity = parseCanonicalIdentity(
+      value.canonicalIdentity,
+      `${path}.canonicalIdentity`,
+    );
   }
   if (value.dslogic !== undefined) {
     record.dslogic = parseDslogicIdentity(value.dslogic, `${path}.dslogic`);
@@ -215,12 +303,17 @@ const parseBackendReadinessRecord = (
   }
 
   return {
-    platform: readString(value.platform, `${path}.platform`) as BackendReadinessRecord["platform"],
-    backendKind: readString(
+    platform: readInventoryEnum(value.platform, `${path}.platform`, INVENTORY_PLATFORMS) as BackendReadinessRecord["platform"],
+    backendKind: readInventoryEnum(
       value.backendKind,
       `${path}.backendKind`,
+      INVENTORY_BACKEND_KINDS,
     ) as BackendReadinessRecord["backendKind"],
-    readiness: readString(value.readiness, `${path}.readiness`) as BackendReadinessRecord["readiness"],
+    readiness: readInventoryEnum(
+      value.readiness,
+      `${path}.readiness`,
+      BACKEND_READINESS_STATES,
+    ) as BackendReadinessRecord["readiness"],
     version: readString(value.version, `${path}.version`, true),
     checkedAt: readString(value.checkedAt, `${path}.checkedAt`, true),
     diagnostics: readStringArrayField(
@@ -255,13 +348,13 @@ const parseInventorySnapshot = (value: unknown): InventorySnapshot => {
         value.inventoryScope.providerKinds,
         "root.inventoryScope.providerKinds",
         (entry, entryPath) =>
-          readString(entry, entryPath) as InventorySnapshot["inventoryScope"]["providerKinds"][number],
+          readInventoryEnum(entry, entryPath, INVENTORY_PROVIDER_KINDS) as InventorySnapshot["inventoryScope"]["providerKinds"][number],
       ),
       backendKinds: readStringArrayField(
         value.inventoryScope.backendKinds,
         "root.inventoryScope.backendKinds",
         (entry, entryPath) =>
-          readString(entry, entryPath) as InventorySnapshot["inventoryScope"]["backendKinds"][number],
+          readInventoryEnum(entry, entryPath, INVENTORY_BACKEND_KINDS) as InventorySnapshot["inventoryScope"]["backendKinds"][number],
       ),
     },
     devices: parseDeviceRecordArray(value.devices, "root.devices"),
@@ -432,7 +525,7 @@ const parseLiveCaptureStreamSummary = (
   }
 
   return {
-    kind: readLiveCaptureString(value.kind, `${path}.kind`) as LiveCaptureStreamSummary["kind"],
+    kind: readLiveCaptureEnum(value.kind, `${path}.kind`, ["empty", "text", "bytes"] as const) as LiveCaptureStreamSummary["kind"],
     byteLength: readLiveCaptureNumber(value.byteLength, `${path}.byteLength`) as number,
     textLength: readLiveCaptureNumber(value.textLength, `${path}.textLength`, true),
     preview: readLiveCaptureString(value.preview, `${path}.preview`, true),
@@ -450,14 +543,16 @@ const parseLiveCaptureFailureDiagnosticsValue = (
 
   return {
     phase: readLiveCaptureString(value.phase, `${path}.phase`) as LiveCaptureFailureDiagnostics["phase"],
-    providerKind: readLiveCaptureString(
+    providerKind: readLiveCaptureEnum(
       value.providerKind,
       `${path}.providerKind`,
+      INVENTORY_PROVIDER_KINDS,
       true,
     ) as LiveCaptureFailureDiagnostics["providerKind"],
-    backendKind: readLiveCaptureString(
+    backendKind: readLiveCaptureEnum(
       value.backendKind,
       `${path}.backendKind`,
+      INVENTORY_BACKEND_KINDS,
       true,
     ) as LiveCaptureFailureDiagnostics["backendKind"],
     backendVersion: readLiveCaptureString(
@@ -504,13 +599,15 @@ const parseLiveCaptureResult = (value: unknown): LiveCaptureResult => {
   if (ok) {
     return {
       ok: true,
-      providerKind: readLiveCaptureString(
+      providerKind: readLiveCaptureEnum(
         value.providerKind,
         "root.providerKind",
+        INVENTORY_PROVIDER_KINDS,
       ) as InventoryProviderKind,
-      backendKind: readLiveCaptureString(
+      backendKind: readLiveCaptureEnum(
         value.backendKind,
         "root.backendKind",
+        INVENTORY_BACKEND_KINDS,
       ) as InventoryBackendKind,
       session: parseLiveCaptureSession(value.session, "root.session"),
       requestedAt: readLiveCaptureString(value.requestedAt, "root.requestedAt") as string,

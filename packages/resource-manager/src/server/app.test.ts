@@ -1,4 +1,4 @@
-import type { InventorySnapshot } from "@listenai/contracts";
+import type { InventorySnapshot, SnapshotResourceManager } from "@listenai/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { createResourceManager } from "../resource-manager.js";
 import { FakeDeviceProvider } from "../testing/fake-device-provider.js";
@@ -1232,6 +1232,97 @@ describe("Hono app routes", () => {
     expect(body.ok).toBe(false);
     expect(body.reason).toBe("lease-not-found");
     expect(body.leaseId).toBe("unknown-lease-id");
+  });
+
+  it("POST /capture/live encodes Uint8Array artifacts and preserves dsview-cli identity", async () => {
+    const request = {
+      session: {
+        sessionId: "capture-session",
+        deviceId: "logic-ready",
+        ownerSkillId: "skill-capture",
+        startedAt: refreshedAt,
+        device: dslogicSnapshot.devices[0],
+        sampling: {
+          sampleRateHz: 1_000_000,
+          captureDurationMs: 250,
+          channels: [{ channelId: "D0", label: "CLK" }]
+        }
+      },
+      requestedAt: refreshedAt,
+      timeoutMs: 15000
+    };
+    const manager = {
+      listDevices: async () => [],
+      refreshInventory: async () => [],
+      getInventorySnapshot: async () => dslogicSnapshot,
+      refreshInventorySnapshot: async () => dslogicSnapshot,
+      allocateDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      releaseDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      liveCapture: async () => ({
+        ok: true,
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        session: request.session,
+        requestedAt: request.requestedAt,
+        artifact: {
+          sourceName: "capture.sr",
+          bytes: new Uint8Array([7, 8, 9])
+        },
+        artifactSummary: {
+          sourceName: "capture.sr",
+          formatHint: null,
+          mediaType: null,
+          capturedAt: null,
+          byteLength: 3,
+          textLength: null,
+          hasText: false
+        }
+      })
+    } as SnapshotResourceManager;
+    const leaseManager = new LeaseManager();
+    const app = createApp(manager, leaseManager);
+
+    const res = await app.request("/capture/live", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: true,
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      session: request.session,
+      requestedAt: request.requestedAt,
+      artifact: {
+        sourceName: "capture.sr",
+        bytes: [7, 8, 9]
+      },
+      artifactSummary: {
+        sourceName: "capture.sr",
+        formatHint: null,
+        mediaType: null,
+        capturedAt: null,
+        byteLength: 3,
+        textLength: null,
+        hasText: false
+      }
+    });
   });
 
   it("GET /leases returns active leases", async () => {

@@ -37,7 +37,12 @@ const readyClassicDevice: DeviceRecord = {
   readiness: "ready",
   diagnostics: [],
   providerKind: "dslogic",
-  backendKind: "libsigrok",
+  backendKind: "dsview-cli",
+  canonicalIdentity: {
+    providerKind: "dslogic",
+    providerDeviceId: "classic-001",
+    canonicalKey: "dslogic:classic-001",
+  },
   dslogic: {
     family: "dslogic",
     model: "dslogic-plus",
@@ -65,11 +70,11 @@ const unsupportedPangoDevice: DeviceRecord = {
       target: "device",
       message: "Variant V421/Pango (2a0e:0030) is not supported.",
       deviceId: "logic-pango",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
     },
   ],
   providerKind: "dslogic",
-  backendKind: "libsigrok",
+  backendKind: "dsview-cli",
   dslogic: {
     family: "dslogic",
     model: "dslogic-plus",
@@ -84,13 +89,13 @@ const mixedDslogicSnapshot: InventorySnapshot = {
   refreshedAt: "2026-03-30T10:00:00.000Z",
   inventoryScope: {
     providerKinds: ["dslogic"],
-    backendKinds: ["libsigrok"],
+    backendKinds: ["dsview-cli"],
   },
   devices: [readyClassicDevice, unsupportedPangoDevice],
   backendReadiness: [
     {
       platform: "linux",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       readiness: "ready",
       version: "1.3.1",
       checkedAt: "2026-03-30T10:00:00.000Z",
@@ -104,13 +109,13 @@ const backendMissingSnapshot: InventorySnapshot = {
   refreshedAt: "2026-03-30T10:00:00.000Z",
   inventoryScope: {
     providerKinds: ["dslogic"],
-    backendKinds: ["libsigrok"],
+    backendKinds: ["dsview-cli"],
   },
   devices: [],
   backendReadiness: [
     {
       platform: "macos",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       readiness: "missing",
       version: null,
       checkedAt: "2026-03-30T10:00:00.000Z",
@@ -119,9 +124,9 @@ const backendMissingSnapshot: InventorySnapshot = {
           code: "backend-missing-runtime",
           severity: "error",
           target: "backend",
-          message: "libsigrok runtime is not available on macos.",
+          message: "dsview-cli runtime is not available on macos.",
           platform: "macos",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           backendVersion: null,
         },
       ],
@@ -132,9 +137,9 @@ const backendMissingSnapshot: InventorySnapshot = {
       code: "backend-missing-runtime",
       severity: "error",
       target: "backend",
-      message: "libsigrok runtime is not available on macos.",
+      message: "dsview-cli runtime is not available on macos.",
       platform: "macos",
-      backendKind: "libsigrok",
+      backendKind: "dsview-cli",
       backendVersion: null,
     },
   ],
@@ -261,7 +266,7 @@ describe("HttpResourceManager", () => {
       fetchSpy.mockResolvedValueOnce(
         jsonResponse({
           providerKind: "dslogic",
-          backendKind: "libsigrok",
+          backendKind: "dsview-cli",
           refreshedAt: "2026-01-01T00:00:00.000Z",
           devices: [{ deviceId: "broken" }],
           backendReadiness: [],
@@ -398,6 +403,128 @@ describe("HttpResourceManager", () => {
   describe("dispose", () => {
     it("returns 0 when no devices allocated", () => {
       expect(mgr.dispose()).toBe(0);
+    });
+  });
+
+  describe("liveCapture", () => {
+    const request = {
+      session: {
+        sessionId: "session-1",
+        deviceId: "logic-ready",
+        ownerSkillId: "skill-a",
+        startedAt: "2026-03-30T10:00:00.000Z",
+        device: readyClassicDevice,
+        sampling: {
+          sampleRateHz: 1_000_000,
+          captureDurationMs: 250,
+          channels: [{ channelId: "D0", label: "CLK" }],
+        },
+      },
+      requestedAt: "2026-03-30T10:00:01.000Z",
+      timeoutMs: 15000,
+    };
+
+    it("parses dsview-cli live capture payloads and preserves byte artifacts", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: true,
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          session: request.session,
+          requestedAt: request.requestedAt,
+          artifact: {
+            sourceName: "capture.sr",
+            formatHint: "srzip",
+            mediaType: "application/octet-stream",
+            capturedAt: "2026-03-30T10:00:02.000Z",
+            text: "trace",
+            bytes: [1, 2, 3, 4],
+          },
+          artifactSummary: {
+            sourceName: "capture.sr",
+            formatHint: "srzip",
+            mediaType: "application/octet-stream",
+            capturedAt: "2026-03-30T10:00:02.000Z",
+            byteLength: 4,
+            textLength: 5,
+            hasText: true,
+          },
+        }),
+      );
+
+      const result = await mgr.liveCapture(request);
+
+      expect(result).toEqual({
+        ok: true,
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        session: request.session,
+        requestedAt: request.requestedAt,
+        artifact: {
+          sourceName: "capture.sr",
+          formatHint: "srzip",
+          mediaType: "application/octet-stream",
+          capturedAt: "2026-03-30T10:00:02.000Z",
+          text: "trace",
+          bytes: new Uint8Array([1, 2, 3, 4]),
+        },
+        artifactSummary: {
+          sourceName: "capture.sr",
+          formatHint: "srzip",
+          mediaType: "application/octet-stream",
+          capturedAt: "2026-03-30T10:00:02.000Z",
+          byteLength: 4,
+          textLength: 5,
+          hasText: true,
+        },
+      });
+      expect(fetch).toHaveBeenCalledWith(BASE + "/capture/live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+    });
+
+    it("rejects stale libsigrok aliases in inventory snapshots", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ...mixedDslogicSnapshot,
+          inventoryScope: {
+            ...mixedDslogicSnapshot.inventoryScope,
+            backendKinds: ["libsigrok"],
+          },
+        }),
+      );
+
+      await expect(mgr.getInventorySnapshot()).rejects.toThrow(
+        "Malformed inventory snapshot response at root.inventoryScope.backendKinds[0]",
+      );
+    });
+
+    it("rejects stale libsigrok aliases in live capture responses", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: true,
+          providerKind: "dslogic",
+          backendKind: "libsigrok",
+          session: request.session,
+          requestedAt: request.requestedAt,
+          artifact: { bytes: [1] },
+          artifactSummary: {
+            sourceName: null,
+            formatHint: null,
+            mediaType: null,
+            capturedAt: null,
+            byteLength: 1,
+            textLength: null,
+            hasText: false,
+          },
+        }),
+      );
+
+      await expect(mgr.liveCapture(request)).rejects.toThrow(
+        "Malformed live capture response at root.backendKind",
+      );
     });
   });
 

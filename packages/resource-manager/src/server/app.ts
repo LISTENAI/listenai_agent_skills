@@ -25,9 +25,9 @@ const encodeLiveCaptureArtifact = (
 
 const encodeLiveCaptureResult = (
   result: LiveCaptureResult
-): LiveCaptureResult | Record<string, unknown> => {
+): Record<string, unknown> => {
   if (!result.ok) {
-    return result;
+    return { ...result };
   }
 
   return {
