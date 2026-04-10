@@ -12,6 +12,7 @@ import { sigrokCsvAdapter } from "./adapters/sigrok-csv-adapter.js";
 
 export interface CaptureLoaderOptions {
   adapters?: readonly LogicCaptureAdapter[];
+  requireDurationMatch?: boolean;
 }
 
 interface SelectedAdapter {
@@ -55,7 +56,8 @@ const selectAdapter = (
 
 const buildCompatibilityIssues = (
   session: LoadCaptureRequest["session"],
-  capture: LogicCapture
+  capture: LogicCapture,
+  options: CaptureLoaderOptions
 ): CaptureCompatibilityIssue[] => {
   const issues: CaptureCompatibilityIssue[] = [];
   const captureChannelIds = new Set(capture.channels.map((channel) => channel.channelId));
@@ -92,7 +94,10 @@ const buildCompatibilityIssues = (
   const actualDurationMs = (capture.durationNs / 1_000_000_000) * 1000;
   const expectedDurationMs = session.sampling.captureDurationMs;
   const durationToleranceMs = Math.max((capture.samplePeriodNs / 1_000_000_000) * 1000, 0.001);
-  if (Math.abs(actualDurationMs - expectedDurationMs) > durationToleranceMs) {
+  if (
+    options.requireDurationMatch !== false &&
+    Math.abs(actualDurationMs - expectedDurationMs) > durationToleranceMs
+  ) {
     issues.push({
       code: "duration-mismatch",
       expected: expectedDurationMs,
@@ -137,7 +142,7 @@ export const createCaptureLoader = (
       };
     }
 
-    const issues = buildCompatibilityIssues(session, parsed.capture);
+    const issues = buildCompatibilityIssues(session, parsed.capture, options);
     if (issues.length > 0) {
       return {
         ok: false,

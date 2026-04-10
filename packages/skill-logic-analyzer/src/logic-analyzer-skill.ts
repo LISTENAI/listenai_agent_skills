@@ -51,6 +51,7 @@ const toCaptureArtifactInput = (artifact: LiveCaptureArtifact) => ({
   formatHint: artifact.formatHint,
   mediaType: artifact.mediaType,
   capturedAt: artifact.capturedAt,
+  sampling: artifact.sampling,
   text: artifact.text,
   bytes: artifact.bytes,
 });
@@ -246,7 +247,11 @@ export const createLogicAnalyzerSkill = (
           session: capturedSession,
           artifact: toCaptureArtifactInput(liveCapture.artifact),
         },
-        options.captureLoaderOptions,
+        {
+          ...options.captureLoaderOptions,
+          requireDurationMatch:
+            options.captureLoaderOptions?.requireDurationMatch ?? false,
+        },
       );
 
       if (!capture.ok) {

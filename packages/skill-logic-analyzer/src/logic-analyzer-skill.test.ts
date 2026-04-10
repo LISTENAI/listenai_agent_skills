@@ -62,6 +62,24 @@ const liveCaptureVcdText = [
   "0!",
 ].join("\n");
 
+const sparseLiveCaptureVcdText = [
+  "$date",
+  "  Fri Apr 10 14:10:20 2026",
+  "$end",
+  "$version libsigrok4DSL 0.2.0 $end",
+  "$comment",
+  "  Acquisition with 1/1 channels at 1 MHz",
+  "$end",
+  "$timescale 1 us $end",
+  "$scope module libsigrok4DSL $end",
+  "$var wire 1 ! D0 $end",
+  "$upscope $end",
+  "$enddefinitions $end",
+  "#0",
+  "1!",
+  "#256",
+].join("\n");
+
 const incompatibleLiveCaptureVcdText = [
   "$date",
   "  2026-03-26T00:00:01.000Z",
@@ -890,6 +908,84 @@ describe("logic analyzer skill", () => {
         ownerSkillId: "logic-analyzer",
       }),
     ]);
+  });
+
+  it("accepts sparse DSView live VCD output when runtime sampling metadata is present", async () => {
+    const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
+    const resourceManager = createResourceManager(provider, {
+      now: createClock(connectedAt),
+      liveCaptureRunner: createDslogicLiveCaptureRunner(async () => ({
+        ok: true,
+        artifact: {
+          sourceName: "logic-1-live.vcd",
+          formatHint: "dsview-vcd",
+          mediaType: "text/x-vcd",
+          capturedAt: captureRequestedAt,
+          sampling: {
+            sampleRateHz: 1_000_000,
+            totalSamples: 256,
+            requestedSampleLimit: 4_000,
+          },
+          text: sparseLiveCaptureVcdText,
+        },
+      })),
+    });
+    const skill = createLogicAnalyzerSkill(resourceManager, {
+      createSessionId: () => "session-001",
+    });
+
+    const startResult = await skill.startSession({
+      ...createValidRequest(),
+      sampling: {
+        sampleRateHz: 1_000_000,
+        captureDurationMs: 4,
+        channels: [{ channelId: "D0", label: "CLK" }],
+      },
+      analysis: {
+        focusChannelIds: ["D0"],
+        edgePolicy: "all",
+        includePulseWidths: true,
+        timeReference: "capture-start",
+      },
+    });
+    expect(startResult.ok).toBe(true);
+    if (!startResult.ok) {
+      return;
+    }
+
+    const captureResult = await skill.captureSession({
+      session: startResult.session,
+      requestedAt: captureRequestedAt,
+      timeoutMs: 1500,
+    });
+
+    expect(captureResult).toMatchObject({
+      ok: true,
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      artifactSummary: {
+        sourceName: "logic-1-live.vcd",
+        formatHint: "dsview-vcd",
+        hasText: true,
+      },
+      capture: {
+        ok: true,
+        adapterId: "dsview-vcd",
+        selectedBy: "format-hint",
+        capture: {
+          sampleRateHz: 1_000_000,
+          totalSamples: 256,
+          durationNs: 256_000,
+          channels: [
+            {
+              channelId: "D0",
+              initialLevel: 1,
+              transitions: [],
+            },
+          ],
+        },
+      },
+    });
   });
 
   it("returns typed runtime capture failures without collapsing them into loader errors", async () => {

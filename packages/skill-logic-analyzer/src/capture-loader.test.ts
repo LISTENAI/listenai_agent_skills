@@ -45,6 +45,24 @@ const fixtureVcdText = [
   "0!"
 ].join("\n");
 
+const sparseFixtureVcdText = [
+  "$date",
+  "  2026-04-10T06:10:20.803141387Z",
+  "$end",
+  "$version libsigrok4DSL 0.2.0 $end",
+  "$comment",
+  "  Acquisition with 1/1 channels at 1 MHz",
+  "$end",
+  "$timescale 1 us $end",
+  "$scope module libsigrok4DSL $end",
+  "$var wire 1 ! D0 $end",
+  "$upscope $end",
+  "$enddefinitions $end",
+  "#0",
+  "1!",
+  "#256"
+].join("\n");
+
 const baseSession: LogicAnalyzerSessionRecord = {
   sessionId: "session-001",
   deviceId: "logic-1",
@@ -230,6 +248,92 @@ describe("capture loader contract", () => {
         }
       });
     }
+  });
+
+  it("uses artifact sampling metadata to normalize sparse DSView VCD captures", () => {
+    const result = loadLogicCapture({
+      session: {
+        ...baseSession,
+        sampling: {
+          sampleRateHz: 1_000_000,
+          captureDurationMs: 0.256,
+          channels: [{ channelId: "D0", label: "CLK" }]
+        },
+        analysis: {
+          ...baseSession.analysis,
+          focusChannelIds: ["D0"]
+        }
+      },
+      artifact: {
+        sourceName: "logic-1-live.vcd",
+        formatHint: "dsview-vcd",
+        mediaType: "text/x-vcd",
+        capturedAt: "2026-04-10T06:10:20.803141387Z",
+        sampling: {
+          sampleRateHz: 1_000_000,
+          totalSamples: 256,
+          requestedSampleLimit: 4_000
+        },
+        text: sparseFixtureVcdText
+      }
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      adapterId: "dsview-vcd",
+      selectedBy: "format-hint"
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.capture).toEqual({
+        adapterId: "dsview-vcd",
+        sourceName: "logic-1-live.vcd",
+        capturedAt: "2026-04-10T06:10:20.803141387Z",
+        sampleRateHz: 1_000_000,
+        samplePeriodNs: 1_000,
+        totalSamples: 256,
+        durationNs: 256_000,
+        channels: [
+          {
+            channelId: "D0",
+            initialLevel: 1,
+            transitions: []
+          }
+        ],
+        artifact: {
+          sourceName: "logic-1-live.vcd",
+          formatHint: "dsview-vcd",
+          mediaType: "text/x-vcd",
+          capturedAt: "2026-04-10T06:10:20.803141387Z",
+          byteLength: null,
+          hasText: true
+        }
+      });
+    }
+  });
+
+  it("can relax duration compatibility when live runtimes return shorter captures", () => {
+    const result = loadLogicCapture(
+      {
+        session: {
+          ...baseSession,
+          sampling: {
+            ...baseSession.sampling,
+            captureDurationMs: 1
+          }
+        },
+        artifact: validCsvArtifact
+      },
+      {
+        requireDurationMatch: false
+      }
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      adapterId: "sigrok-csv",
+      selectedBy: "probe"
+    });
   });
 
   it("returns a typed unsupported-adapter failure when no adapter matches the requested format hint", () => {

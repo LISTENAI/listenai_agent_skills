@@ -1,3 +1,6 @@
+import type {
+  LiveCaptureArtifactSampling,
+} from "@listenai/contracts";
 import type { LogicAnalyzerSessionRecord } from "./contracts.js";
 
 export const CAPTURE_LOAD_FAILURE_REASONS = [
@@ -23,6 +26,7 @@ export interface CaptureArtifactInput {
   formatHint?: string;
   mediaType?: string;
   capturedAt?: string;
+  sampling?: LiveCaptureArtifactSampling;
   text?: string;
   bytes?: Uint8Array;
 }
