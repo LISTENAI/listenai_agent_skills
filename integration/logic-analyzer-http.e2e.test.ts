@@ -5,10 +5,12 @@ import type {
   InventoryDiagnostic,
   InventorySnapshot,
   LeaseInfo,
+  LiveCaptureResult,
 } from "@listenai/contracts";
 import {
   FakeDeviceProvider,
   LeaseManager,
+  createDslogicDeviceOptionsRunner,
   createDslogicLiveCaptureRunner,
   createResourceManager,
   createServer,
@@ -56,6 +58,14 @@ const fixtureVcdText = [
   "#3000",
   "0!",
 ].join("\n");
+
+const fixtureCaptureTuning = {
+  operation: "collect",
+  channel: "buffer",
+  stop: "samples",
+  filter: "none",
+  threshold: "1.8v",
+} as const;
 
 interface ServerState {
   devices: DeviceRecord[];
@@ -276,11 +286,13 @@ async function withLiveServer(
   initialSnapshot: InventorySnapshot,
   run: (context: { url: string; provider: FakeDeviceProvider }) => Promise<void>,
   options: {
+    deviceOptionsRunner?: ReturnType<typeof createDslogicDeviceOptionsRunner>;
     liveCaptureRunner?: ReturnType<typeof createDslogicLiveCaptureRunner>;
   } = {},
 ): Promise<void> {
   const provider = new FakeDeviceProvider(initialSnapshot);
   const manager = createResourceManager(provider, {
+    deviceOptionsRunner: options.deviceOptionsRunner,
     liveCaptureRunner: options.liveCaptureRunner,
   });
   const leaseManager = new LeaseManager({ timeoutMs: 120 });
@@ -315,22 +327,64 @@ afterEach(() => {
 });
 
 describe("logic-analyzer live HTTP workflow", () => {
-  it("normalizes a live capture over HTTP and keeps the accepted lease until endSession", async () => {
-    const liveCaptureRunner = createDslogicLiveCaptureRunner(async () => ({
-      ok: true,
-            artifact: {
-        sourceName: "logic-1-live.vcd",
-        formatHint: "dsview-vcd",
-        mediaType: "text/x-vcd",
-        capturedAt: captureRequestedAt,
-        text: fixtureVcdText,
-      },
-    }));
+  it("inspects options, tunes live capture, loads dsview-vcd, and preserves auxiliary artifacts over HTTP", async () => {
+    let optionsLookupCount = 0;
+    let captureCount = 0;
+    const deviceOptionsRunner = createDslogicDeviceOptionsRunner(async (request) => {
+      optionsLookupCount += 1;
+      expect(request.requestedAt).toBe(captureRequestedAt);
+      expect(request.session.deviceId).toBe("logic-1");
+
+      return {
+        ok: true,
+        backendVersion: "1.2.2",
+        capabilities: {
+          operations: [{ token: fixtureCaptureTuning.operation, label: "Collect" }],
+          channels: [{ token: fixtureCaptureTuning.channel, label: "Buffer" }],
+          stopConditions: [{ token: fixtureCaptureTuning.stop, label: "Samples" }],
+          filters: [{ token: fixtureCaptureTuning.filter, label: "None" }],
+          thresholds: [{ token: fixtureCaptureTuning.threshold, label: "CMOS 1.8V" }],
+        },
+        optionsOutput: { text: "fixture options payload" },
+      };
+    });
+    const liveCaptureRunner = createDslogicLiveCaptureRunner(async (request) => {
+      captureCount += 1;
+      expect(request.captureTuning).toEqual(fixtureCaptureTuning);
+
+      return {
+        ok: true,
+        backendVersion: "1.2.2",
+        artifact: {
+          sourceName: "logic-1-live.vcd",
+          formatHint: "dsview-vcd",
+          mediaType: "text/x-vcd",
+          capturedAt: captureRequestedAt,
+          text: fixtureVcdText,
+        },
+        auxiliaryArtifacts: [
+          {
+            sourceName: "logic-1-live.metadata.json",
+            formatHint: "dsview-metadata",
+            mediaType: "application/json",
+            capturedAt: captureRequestedAt,
+            text: JSON.stringify({ backendVersion: "1.2.2", tuned: true }),
+          },
+        ],
+      };
+    });
 
     await withLiveServer(
       createReadyInventorySnapshot(),
       async ({ url }) => {
         const resourceManager = new HttpResourceManager(url);
+        const rawLiveCaptures: LiveCaptureResult[] = [];
+        const originalLiveCapture = resourceManager.liveCapture.bind(resourceManager);
+        resourceManager.liveCapture = async (request) => {
+          const result = await originalLiveCapture(request);
+          rawLiveCaptures.push(result);
+          return result;
+        };
         managersToDispose.add(resourceManager);
         const sessionSkill = createLogicAnalyzerSkill(resourceManager, {
           createSessionId: () => "session-live",
@@ -350,10 +404,31 @@ describe("logic-analyzer live HTTP workflow", () => {
           return;
         }
 
+        const optionsResult = await resourceManager.inspectDeviceOptions({
+          session: startResult.session,
+          requestedAt: captureRequestedAt,
+          timeoutMs: 1500,
+        });
+        expect(optionsResult).toMatchObject({
+          ok: true,
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          capabilities: {
+            operations: [{ token: fixtureCaptureTuning.operation }],
+            channels: [{ token: fixtureCaptureTuning.channel }],
+            stopConditions: [{ token: fixtureCaptureTuning.stop }],
+            filters: [{ token: fixtureCaptureTuning.filter }],
+            thresholds: [{ token: fixtureCaptureTuning.threshold }],
+          },
+        });
+        expect(optionsLookupCount).toBe(1);
+        expect(captureCount).toBe(0);
+
         const captureResult = await sessionSkill.captureSession({
           session: startResult.session,
           requestedAt: captureRequestedAt,
           timeoutMs: 1500,
+          captureTuning: fixtureCaptureTuning,
         });
 
         expect(captureResult).toMatchObject({
@@ -383,6 +458,19 @@ describe("logic-analyzer live HTTP workflow", () => {
               },
             },
           },
+        });
+        expect(captureCount).toBe(1);
+        expect(rawLiveCaptures).toHaveLength(1);
+        expect(rawLiveCaptures[0]).toMatchObject({
+          ok: true,
+          auxiliaryArtifactSummaries: [
+            {
+              sourceName: "logic-1-live.metadata.json",
+              formatHint: "dsview-metadata",
+              mediaType: "application/json",
+              hasText: true,
+            },
+          ],
         });
 
         const allocatedState = await getServerState(url);
@@ -418,7 +506,7 @@ describe("logic-analyzer live HTTP workflow", () => {
           },
         });
       },
-      { liveCaptureRunner },
+      { deviceOptionsRunner, liveCaptureRunner },
     );
   });
 
