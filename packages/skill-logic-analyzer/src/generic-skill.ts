@@ -37,7 +37,7 @@ import type {
   DsviewDecoderValidationIssue
 } from "./decoder-runner.js";
 import { summarizeCaptureArtifact } from "./capture-contracts.js";
-import type { SnapshotResourceManager } from "@listenai/contracts";
+import type { LiveCaptureTuning, SnapshotResourceManager } from "@listenai/contracts";
 
 export const GENERIC_LOGIC_ANALYZER_MODES = ["artifact", "live"] as const;
 export type GenericLogicAnalyzerMode =
@@ -77,6 +77,7 @@ export interface GenericLogicAnalyzerOfflineRequest {
 export interface GenericLogicAnalyzerLiveCaptureConfig {
   requestedAt: string;
   timeoutMs?: number;
+  captureTuning?: LiveCaptureTuning;
 }
 
 export interface GenericLogicAnalyzerLiveRequest {
@@ -322,6 +323,64 @@ const pushPositiveNumberIssue = (
   }
 };
 
+const CAPTURE_TUNING_KEYS = [
+  "operation",
+  "channel",
+  "stop",
+  "filter",
+  "threshold"
+] as const;
+
+const pushCaptureTuningIssues = (
+  issues: LogicAnalyzerValidationIssue[],
+  path: string,
+  value: unknown
+): void => {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isRecord(value)) {
+    issues.push({
+      path,
+      code: "invalid-type",
+      message: `${path} must be an object when provided.`
+    });
+    return;
+  }
+
+  for (const key of CAPTURE_TUNING_KEYS) {
+    const token = value[key];
+    if (token === undefined) {
+      continue;
+    }
+
+    if (typeof token !== "string" || token.trim().length === 0) {
+      issues.push({
+        path: `${path}.${key}`,
+        code: "invalid-type",
+        message: `${path}.${key} must be a non-empty string when provided.`
+      });
+    }
+  }
+};
+
+const normalizeCaptureTuning = (value: unknown): LiveCaptureTuning | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const tuning: LiveCaptureTuning = {};
+  for (const key of CAPTURE_TUNING_KEYS) {
+    const token = value[key];
+    if (typeof token === "string") {
+      tuning[key] = token;
+    }
+  }
+
+  return Object.keys(tuning).length > 0 ? tuning : undefined;
+};
+
 const pushArtifactPayloadIssue = (
   issues: LogicAnalyzerValidationIssue[],
   path: string,
@@ -397,6 +456,11 @@ export const validateGenericLogicAnalyzerRequest = (
         value.capture.requestedAt
       );
       pushPositiveNumberIssue(issues, "capture.timeoutMs", value.capture.timeoutMs);
+      pushCaptureTuningIssues(
+        issues,
+        "capture.captureTuning",
+        value.capture.captureTuning
+      );
     }
   } else {
     pushRequiredObjectIssue(issues, "artifact", value.artifact);
@@ -419,6 +483,10 @@ export const validateGenericLogicAnalyzerRequest = (
   }
 
   if (normalizedMode === "live") {
+    const captureTuning = normalizeCaptureTuning(
+      (value.capture as { captureTuning?: unknown }).captureTuning
+    );
+
     return {
       ok: true,
       value: {
@@ -426,7 +494,8 @@ export const validateGenericLogicAnalyzerRequest = (
         session: value.session as StartLogicAnalyzerSessionRequest,
         capture: {
           requestedAt: (value.capture as { requestedAt: string }).requestedAt,
-          timeoutMs: (value.capture as { timeoutMs?: number }).timeoutMs
+          timeoutMs: (value.capture as { timeoutMs?: number }).timeoutMs,
+          ...(captureTuning ? { captureTuning } : {})
         },
         cleanup: {
           endedAt: (value.cleanup as { endedAt: string }).endedAt
@@ -605,7 +674,8 @@ const runLiveGenericLogicAnalyzer = async (
   const captureSession = await sessionSkill.captureSession({
     session,
     requestedAt: request.capture.requestedAt,
-    timeoutMs: request.capture.timeoutMs
+    timeoutMs: request.capture.timeoutMs,
+    captureTuning: request.capture.captureTuning
   });
 
   if (!captureSession.ok) {

@@ -224,8 +224,7 @@ describe("logic analyzer session contract", () => {
       "missing-dslogic-identity",
       "empty-channel-selection",
       "duplicate-channel-selection",
-      "channel-count-exceeds-device-limit",
-      "sample-rate-exceeds-device-limit"
+      "channel-count-exceeds-device-limit"
     ]);
     expect(LOGIC_ANALYZER_END_FAILURE_REASONS).toEqual([
       "invalid-request",
@@ -423,6 +422,10 @@ describe("logic analyzer session contract", () => {
     const result = validateCaptureLogicAnalyzerSessionRequest({
       requestedAt: null,
       timeoutMs: 0,
+      captureTuning: {
+        operation: "",
+        channel: 42,
+      },
       session: {
         sessionId: "",
         deviceId: null,
@@ -449,6 +452,8 @@ describe("logic analyzer session contract", () => {
         expect.arrayContaining([
           expect.objectContaining({ path: "requestedAt", code: "required" }),
           expect.objectContaining({ path: "timeoutMs", code: "too-small" }),
+          expect.objectContaining({ path: "captureTuning.operation", code: "invalid-type" }),
+          expect.objectContaining({ path: "captureTuning.channel", code: "invalid-type" }),
           expect.objectContaining({ path: "session.sessionId", code: "required" }),
           expect.objectContaining({ path: "session.deviceId", code: "required" }),
           expect.objectContaining({ path: "session.ownerSkillId", code: "required" }),
@@ -837,16 +842,26 @@ describe("logic analyzer skill", () => {
     const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
     const resourceManager = createResourceManager(provider, {
       now: createClock(connectedAt),
-      liveCaptureRunner: createDslogicLiveCaptureRunner(async () => ({
-        ok: true,
-        artifact: {
-          sourceName: "logic-1-live.vcd",
-          formatHint: "dsview-vcd",
-          mediaType: "text/x-vcd",
-          capturedAt: captureRequestedAt,
-          text: liveCaptureVcdText,
-        },
-      })),
+      liveCaptureRunner: createDslogicLiveCaptureRunner(async (request) => {
+        expect(request.captureTuning).toEqual({
+          operation: "collect",
+          channel: "buffer",
+          stop: "samples",
+          filter: "none",
+          threshold: "1.8v",
+        });
+
+        return {
+          ok: true,
+          artifact: {
+            sourceName: "logic-1-live.vcd",
+            formatHint: "dsview-vcd",
+            mediaType: "text/x-vcd",
+            capturedAt: captureRequestedAt,
+            text: liveCaptureVcdText,
+          },
+        };
+      }),
     });
     const skill = createLogicAnalyzerSkill(resourceManager, {
       createSessionId: () => "session-001",
@@ -868,6 +883,13 @@ describe("logic analyzer skill", () => {
       session: startResult.session,
       requestedAt: captureRequestedAt,
       timeoutMs: 1500,
+      captureTuning: {
+        operation: "collect",
+        channel: "buffer",
+        stop: "samples",
+        filter: "none",
+        threshold: "1.8v",
+      },
     });
 
     expect(captureResult).toMatchObject({
@@ -1040,6 +1062,69 @@ describe("logic analyzer skill", () => {
         ownerSkillId: "logic-analyzer",
       }),
     ]);
+  });
+
+  it("surfaces unsupported well-formed capture tuning from resource-manager diagnostics", async () => {
+    const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
+    const resourceManager = createResourceManager(provider, {
+      now: createClock(connectedAt),
+      liveCaptureRunner: createDslogicLiveCaptureRunner(async (request) => {
+        expect(request.captureTuning).toEqual({ operation: "unsupported" });
+
+        return {
+          ok: false,
+          kind: "capture-failed",
+          phase: "prepare-runtime",
+          message: "Live capture request includes DSLogic tuning tokens not reported by the native runtime.",
+          details: [
+            "Unsupported capture tuning operation token unsupported. Supported tokens: collect.",
+          ],
+        };
+      }),
+    });
+    const skill = createLogicAnalyzerSkill(resourceManager, {
+      createSessionId: () => "session-001",
+    });
+
+    const startResult = await skill.startSession(
+      createValidRequest({
+        sampling: {
+          sampleRateHz: 500_000_000,
+          captureDurationMs: 25,
+          channels: [
+            { channelId: "D0", label: "CLK" },
+            { channelId: "D1", label: "MOSI" },
+            { channelId: "D2", label: "MISO" },
+            { channelId: "D3", label: "CS" },
+          ],
+        },
+      }),
+    );
+    expect(startResult.ok).toBe(true);
+    if (!startResult.ok) {
+      return;
+    }
+
+    const captureResult = await skill.captureSession({
+      session: startResult.session,
+      requestedAt: captureRequestedAt,
+      captureTuning: { operation: "unsupported" },
+    });
+
+    expect(captureResult).toMatchObject({
+      ok: false,
+      reason: "capture-runtime-failed",
+      captureRuntime: {
+        ok: false,
+        kind: "capture-failed",
+        diagnostics: {
+          phase: "prepare-runtime",
+          details: [
+            "Unsupported capture tuning operation token unsupported. Supported tokens: collect.",
+          ],
+        },
+      },
+    });
   });
 
   it("keeps post-runtime loader incompatibility distinct from runtime capture failures", async () => {

@@ -13,12 +13,6 @@ import type {
   StartLogicAnalyzerSessionRequest
 } from "./contracts.js";
 
-const DSLOGIC_PLUS_SAMPLE_RATE_TIERS = [
-  { maxChannels: 4, maxSampleRateHz: 400_000_000 },
-  { maxChannels: 8, maxSampleRateHz: 200_000_000 },
-  { maxChannels: 16, maxSampleRateHz: 100_000_000 }
-] as const;
-
 const cloneDiagnostics = (
   diagnostics: readonly InventoryDiagnostic[] | undefined
 ): readonly InventoryDiagnostic[] => diagnostics?.map((diagnostic) => ({ ...diagnostic })) ?? [];
@@ -235,8 +229,7 @@ const evaluateBackendConstraints = (
   });
 };
 
-const evaluateSampleRateConstraints = (
-  request: StartLogicAnalyzerSessionRequest,
+const evaluateChannelCountConstraints = (
   selectedChannelCount: number,
   issues: LogicAnalyzerConstraintIssue[]
 ): void => {
@@ -249,22 +242,6 @@ const evaluateSampleRateConstraints = (
       path: "sampling.channels",
       code: "channel-count-exceeds-device-limit",
       message: `DSLogic Plus supports at most 16 channels, but ${selectedChannelCount} were requested.`
-    });
-    return;
-  }
-
-  const tier = DSLOGIC_PLUS_SAMPLE_RATE_TIERS.find(
-    (candidate) => selectedChannelCount <= candidate.maxChannels
-  );
-  if (!tier) {
-    return;
-  }
-
-  if (request.sampling.sampleRateHz > tier.maxSampleRateHz) {
-    pushIssue(issues, {
-      path: "sampling.sampleRateHz",
-      code: "sample-rate-exceeds-device-limit",
-      message: `DSLogic Plus supports up to ${tier.maxSampleRateHz}Hz with ${selectedChannelCount} channels, but ${request.sampling.sampleRateHz}Hz was requested.`
     });
   }
 };
@@ -286,7 +263,7 @@ export const evaluateStartSessionConstraints = ({
   evaluateBackendConstraints(backendReadiness, issues);
   evaluateDeviceConstraints(request, device, issues);
   const selectedChannelCount = evaluateChannelSelections(request, issues);
-  evaluateSampleRateConstraints(request, selectedChannelCount, issues);
+  evaluateChannelCountConstraints(selectedChannelCount, issues);
 
   const report = buildReport(request, snapshot, device, backendReadiness, issues);
 

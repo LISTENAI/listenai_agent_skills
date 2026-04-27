@@ -345,7 +345,7 @@ describe("generic logic analyzer contract", () => {
       | {
           mode: "live";
           session: { deviceId: string; sampling: { sampleRateHz: number } };
-          capture: { requestedAt: string; timeoutMs?: number };
+          capture: { requestedAt: string; timeoutMs?: number; captureTuning?: { operation?: string } };
           cleanup: { endedAt: string };
         }
     >();
@@ -768,6 +768,49 @@ describe("generic logic analyzer contract", () => {
     expect(await resourceManager.listDevices()).toEqual([]);
   });
 
+  it("rejects malformed live capture tuning before allocation", async () => {
+    const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
+    const resourceManager = createResourceManager(provider, {
+      now: createClock(connectedAt)
+    });
+
+    const result = await runGenericLogicAnalyzer(
+      resourceManager,
+      createLiveRequest({
+        capture: {
+          requestedAt: captureRequestedAt,
+          timeoutMs: 1500,
+          captureTuning: {
+            operation: "",
+            channel: 42 as unknown as string
+          }
+        }
+      })
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      phase: "request-validation",
+      issues: [
+        {
+          path: "capture.captureTuning.operation",
+          code: "invalid-type",
+          message: "capture.captureTuning.operation must be a non-empty string when provided."
+        },
+        {
+          path: "capture.captureTuning.channel",
+          code: "invalid-type",
+          message: "capture.captureTuning.channel must be a non-empty string when provided."
+        }
+      ],
+      cleanup: {
+        attempted: false,
+        reason: "not-started"
+      }
+    });
+    expect(await resourceManager.listDevices()).toEqual([]);
+  });
+
   it("rejects offline requests that do not provide artifact text or bytes", async () => {
     const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
     const resourceManager = createResourceManager(provider, {
@@ -806,22 +849,46 @@ describe("generic logic analyzer contract", () => {
     const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
     const resourceManager = createResourceManager(provider, {
       now: createClock(connectedAt),
-      liveCaptureRunner: createDslogicLiveCaptureRunner(async () => ({
-        ok: true,
-        artifact: {
-          sourceName: "logic-1-live.vcd",
-          formatHint: "dsview-vcd",
-          mediaType: "text/x-vcd",
-          capturedAt: captureRequestedAt,
-          text: fixtureVcdText
-        }
-      }))
+      liveCaptureRunner: createDslogicLiveCaptureRunner(async (request) => {
+        expect(request.captureTuning).toEqual({
+          operation: "collect",
+          channel: "buffer",
+          stop: "samples",
+          filter: "none",
+          threshold: "1.8v"
+        });
+
+        return {
+          ok: true,
+          artifact: {
+            sourceName: "logic-1-live.vcd",
+            formatHint: "dsview-vcd",
+            mediaType: "text/x-vcd",
+            capturedAt: captureRequestedAt,
+            text: fixtureVcdText
+          }
+        };
+      })
     });
     const skill = createGenericLogicAnalyzerSkill(resourceManager, {
       createSessionId: () => "session-001"
     });
 
-    const result = await skill.run(createLiveRequest());
+    const result = await skill.run(
+      createLiveRequest({
+        capture: {
+          requestedAt: captureRequestedAt,
+          timeoutMs: 1500,
+          captureTuning: {
+            operation: "collect",
+            channel: "buffer",
+            stop: "samples",
+            filter: "none",
+            threshold: "1.8v"
+          }
+        }
+      })
+    );
 
     expect(result).toMatchObject({
       ok: true,

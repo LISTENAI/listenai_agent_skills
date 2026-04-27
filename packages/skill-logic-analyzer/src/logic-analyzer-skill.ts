@@ -208,6 +208,7 @@ export const createLogicAnalyzerSkill = (
         session: validation.value.session,
         requestedAt: validation.value.requestedAt,
         timeoutMs: validation.value.timeoutMs,
+        captureTuning: validation.value.captureTuning,
       });
 
       if (!liveCapture.ok) {

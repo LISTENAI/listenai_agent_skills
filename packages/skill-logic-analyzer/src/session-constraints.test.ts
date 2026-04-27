@@ -114,8 +114,7 @@ describe("session constraint contracts", () => {
       "missing-dslogic-identity",
       "empty-channel-selection",
       "duplicate-channel-selection",
-      "channel-count-exceeds-device-limit",
-      "sample-rate-exceeds-device-limit"
+      "channel-count-exceeds-device-limit"
     ]);
 
     expectTypeOf<LogicAnalyzerSessionConstraintEvaluation>().toMatchTypeOf<
@@ -212,29 +211,12 @@ describe("evaluateStartSessionConstraints", () => {
   );
 
   it.each([
-    {
-      channelCount: 4,
-      sampleRateHz: 400_000_001,
-      expectedCode: "sample-rate-exceeds-device-limit"
-    },
-    {
-      channelCount: 8,
-      sampleRateHz: 200_000_001,
-      expectedCode: "sample-rate-exceeds-device-limit"
-    },
-    {
-      channelCount: 16,
-      sampleRateHz: 100_000_001,
-      expectedCode: "sample-rate-exceeds-device-limit"
-    },
-    {
-      channelCount: 17,
-      sampleRateHz: 100_000_000,
-      expectedCode: "channel-count-exceeds-device-limit"
-    }
+    { channelCount: 4, sampleRateHz: 400_000_001 },
+    { channelCount: 8, sampleRateHz: 200_000_001 },
+    { channelCount: 16, sampleRateHz: 100_000_001 }
   ])(
-    "rejects DSLogic Plus tier overages for $channelCount channels",
-    ({ channelCount, sampleRateHz, expectedCode }) => {
+    "accepts high sample rates for resource-manager capability validation with $channelCount channels",
+    ({ channelCount, sampleRateHz }) => {
       const request = createRequest(channelCount, sampleRateHz);
       const snapshot = createSnapshot();
 
@@ -245,19 +227,41 @@ describe("evaluateStartSessionConstraints", () => {
       });
 
       expect(result).toMatchObject({
-        ok: false,
-        reason: "constraint-rejected"
+        ok: true,
+        report: {
+          request: {
+            requestedChannelCount: channelCount,
+            sampleRateHz
+          },
+          issues: []
+        }
       });
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.report.issues).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({ code: expectedCode })
-          ])
-        );
-      }
     }
   );
+
+  it("rejects channel-count overages as a coarse local device constraint", () => {
+    const request = createRequest(17, 100_000_000);
+    const snapshot = createSnapshot();
+
+    const result = evaluateStartSessionConstraints({
+      request,
+      snapshot,
+      device: snapshot.devices[0]
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "constraint-rejected"
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.report.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "channel-count-exceeds-device-limit" })
+        ])
+      );
+    }
+  });
 
   it("rejects duplicate and empty channel IDs as non-admissible", () => {
     const request: StartLogicAnalyzerSessionRequest = {

@@ -8,6 +8,7 @@ import type {
   InventoryDiagnostic,
   InventoryProviderKind,
   LiveCaptureFailure,
+  LiveCaptureTuning,
   ReleaseFailure
 } from "@listenai/contracts";
 import type {
@@ -113,8 +114,7 @@ export const LOGIC_ANALYZER_CONSTRAINT_ISSUE_CODES = [
   "missing-dslogic-identity",
   "empty-channel-selection",
   "duplicate-channel-selection",
-  "channel-count-exceeds-device-limit",
-  "sample-rate-exceeds-device-limit"
+  "channel-count-exceeds-device-limit"
 ] as const;
 export type LogicAnalyzerConstraintIssueCode =
   (typeof LOGIC_ANALYZER_CONSTRAINT_ISSUE_CODES)[number];
@@ -216,6 +216,7 @@ export interface CaptureLogicAnalyzerSessionRequest {
   session: LogicAnalyzerSessionRecord;
   requestedAt: string;
   timeoutMs?: number;
+  captureTuning?: LiveCaptureTuning;
 }
 
 export interface LogicAnalyzerCaptureValidationFailure {
@@ -534,6 +535,63 @@ const validateAnalysis = (
   validateAnalysisWindow(value.window, issues);
 };
 
+const CAPTURE_TUNING_KEYS = [
+  "operation",
+  "channel",
+  "stop",
+  "filter",
+  "threshold"
+] as const;
+
+const validateCaptureTuning = (
+  value: unknown,
+  issues: LogicAnalyzerValidationIssue[]
+): void => {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isRecord(value)) {
+    issues.push({
+      path: "captureTuning",
+      code: "invalid-type",
+      message: "captureTuning must be an object when provided."
+    });
+    return;
+  }
+
+  for (const key of CAPTURE_TUNING_KEYS) {
+    const token = value[key];
+    if (token === undefined) {
+      continue;
+    }
+
+    if (!isNonEmptyString(token)) {
+      issues.push({
+        path: `captureTuning.${key}`,
+        code: "invalid-type",
+        message: `captureTuning.${key} must be a non-empty string when provided.`
+      });
+    }
+  }
+};
+
+const normalizeCaptureTuning = (value: unknown): LiveCaptureTuning | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const tuning: LiveCaptureTuning = {};
+  for (const key of CAPTURE_TUNING_KEYS) {
+    const token = value[key];
+    if (typeof token === "string") {
+      tuning[key] = token;
+    }
+  }
+
+  return Object.keys(tuning).length > 0 ? tuning : undefined;
+};
+
 export const validateStartLogicAnalyzerSessionRequest = (
   value: unknown
 ): ValidationResult<StartLogicAnalyzerSessionRequest> => {
@@ -654,6 +712,8 @@ export const validateCaptureLogicAnalyzerSessionRequest = (
     }
   }
 
+  validateCaptureTuning(value.captureTuning, issues);
+
   if (!isRecord(value.session)) {
     issues.push({
       path: "session",
@@ -692,12 +752,15 @@ export const validateCaptureLogicAnalyzerSessionRequest = (
     };
   }
 
+  const captureTuning = normalizeCaptureTuning(value.captureTuning);
+
   return {
     ok: true,
     value: {
       session: value.session as LogicAnalyzerSessionRecord,
       requestedAt: value.requestedAt as string,
-      timeoutMs: value.timeoutMs as number | undefined
+      timeoutMs: value.timeoutMs as number | undefined,
+      ...(captureTuning ? { captureTuning } : {})
     }
   };
 };
