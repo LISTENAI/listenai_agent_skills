@@ -23,6 +23,8 @@ Import from <code>@listenai/skill-logic-analyzer</code> only.
 Preferred exports:
 - <code>createGenericLogicAnalyzerSkill</code> when the host will reuse a configured skill instance.
 - <code>runGenericLogicAnalyzer</code> when a one-shot call is simpler.
+- <code>listDsviewDecoders</code> and <code>inspectDsviewDecoder</code> when the host needs package-root decoder metadata discovery.
+- <code>runDsviewDecoder</code> when the host wants to call the offline decode seam directly.
 - Related request/result types from the same package-root surface when the host needs stronger typing.
 
 Do not deep-import internal modules from host code.
@@ -38,16 +40,17 @@ Current canonical keys:
 
 <request_shape>
 Send one object in one of two modes:
-- <code>mode?: "artifact"</code>: existing offline callers provide <code>session</code>, <code>artifact</code>, and <code>cleanup</code>.
+- <code>mode?: "artifact"</code>: existing offline callers provide <code>session</code>, <code>artifact</code>, and <code>cleanup</code>. They may also provide optional <code>decode</code> with <code>decoderId</code>, already-inspected <code>decoder</code> metadata, <code>channelMappings</code>, and optional <code>decoderOptions</code>.
 - <code>mode: "live"</code>: live callers provide <code>session</code>, <code>capture</code>, and <code>cleanup</code>.
 
 The nested sections stay the same:
 - <code>session</code>: the start-session request payload.
 - <code>artifact</code>: the offline capture artifact payload.
+- <code>decode</code>: optional offline protocol decode request; fixture-backed for this slice and additive to waveform analysis.
 - <code>capture</code>: live capture timing inputs, currently <code>requestedAt</code> and optional <code>timeoutMs</code>.
 - <code>cleanup</code>: currently requires <code>endedAt</code> for post-allocation cleanup attempts.
 
-Keep the nested contracts intact. Do not flatten session, artifact, capture, or cleanup fields into a new host-specific schema.
+Keep the nested contracts intact. Do not flatten session, artifact, decode, capture, or cleanup fields into a new host-specific schema.
 </request_shape>
 
 <execution_flow>
@@ -55,7 +58,10 @@ Keep the nested contracts intact. Do not flatten session, artifact, capture, or 
 2. Start a logic-analyzer session through the existing session seam.
 3. Either load the supplied offline artifact or run live capture through the shared manager/client seam.
 4. Analyze the normalized capture through the waveform-analyzer seam.
-5. If a failure happens after allocation, surface the cleanup attempt and cleanup result instead of hiding it.
+5. If offline <code>decode</code> is present, validate it against inspected decoder metadata and run the injected <code>dsview-cli decode run</code> seam.
+6. If a failure happens after allocation, surface the cleanup attempt and cleanup result instead of hiding it.
+
+Protocol decode is not the live capture authority. Resource-manager remains responsible for hardware allocation and live capture; the decode seam consumes caller-provided offline artifacts and adds protocol facts without replacing waveform analysis.
 </execution_flow>
 
 <result_handling>
@@ -65,6 +71,7 @@ Successful result:
 - <code>ok: true</code>
 - <code>phase: "completed"</code>
 - Includes the allocated session, normalized capture metadata, waveform analysis output, and <code>captureSession</code> details for live runs.
+- Includes <code>decode</code> only for offline requests that supplied optional protocol decode and completed <code>dsview-cli decode run</code> successfully; this payload is additive and does not replace <code>analysis</code>.
 
 After a successful packaged run, keep using the package-root surface for cleanup: the device stays allocated until the host explicitly calls <code>endSession(...)</code> with the returned session details.
 
@@ -73,6 +80,8 @@ Failure result:
 - <code>phase: "start-session"</code> preserves the nested session-start failure payload.
 - <code>phase: "live-capture"</code> preserves live request validation, runtime timeout/failure, or malformed live artifact details plus the visible cleanup outcome.
 - <code>phase: "load-capture"</code> preserves the nested loader failure payload and the visible cleanup outcome.
+- <code>phase: "decode-validation"</code> preserves decode validation issues, artifact summary, capture, waveform analysis, and the post-allocation cleanup outcome.
+- <code>phase: "decode-run"</code> preserves decode reason/code/message/detail, command/args/stdout/stderr/exit code/signal/native code, artifact summary, temp cleanup, capture, waveform analysis, and the post-allocation cleanup outcome.
 
 Treat nested payloads as authoritative diagnostics. Do not replace them with a new summarized reason string. If the HTTP transport returns malformed payloads, let the transport/parser error surface instead of fabricating a typed packaged runner failure.
 </result_handling>
@@ -95,6 +104,8 @@ Keep the shared contract vocabulary intact:
 - For Codex installation, use the package-owned CLI <code>listenai-logic-analyzer-install-codex &lt;codex-skills-directory&gt;</code> and target either <code>~/.codex/skills</code> or <code>.codex/skills</code>; the installed skill lives at <code>logic-analyzer/</code> under that directory and contains this package-owned <code>SKILL.md</code> plus <code>README.md</code>.
 - For Claude Code installation, use the package-owned CLI <code>listenai-logic-analyzer-install-claude &lt;claude-skills-directory&gt;</code> and target either <code>~/.claude/skills</code> or <code>.claude/skills</code>; the installed skill lives at <code>logic-analyzer/</code> under that directory and contains this package-owned <code>SKILL.md</code> plus <code>README.md</code>.
 - Keep repo-local callers on the package-owned import path so docs and runtime entrypoints stay canonical.
+- Keep optional protocol decode offline and additive for this contract: hosts pass inspected decoder metadata and an injected command runner, then continue returning waveform analysis alongside any decode report.
+- Keep resource-manager as the live capture authority; do not route live allocation, probe readiness, or live capture through the protocol decode seam.
 - When verifying the packaged live/offline contract and the host support story, prefer <code>bash scripts/verify-m010-s05.sh</code> or <code>pnpm run verify:m010:s05</code>; the focused S05 checks are the package generic-skill test, the DSLogic provider regression test, and the README/SKILL support-matrix grep.
 - Keep user-visible reporting aligned with the returned structured payloads.
 - Preserve cleanup diagnostics when reporting post-allocation failures.
@@ -102,5 +113,5 @@ Keep the shared contract vocabulary intact:
 </host_instructions>
 
 <success_criteria>
-The host uses the package-root exports from <code>@listenai/skill-logic-analyzer</code>, passes the nested packaged request shape unchanged, returns either the completed waveform result or the phase-aware failure object with cleanup visibility intact, and explicitly ends successful sessions when the device should be released.
+The host uses the package-root exports from <code>@listenai/skill-logic-analyzer</code>, passes the nested packaged request shape unchanged, returns either the completed waveform result with any additive decode report or the phase-aware failure object with cleanup visibility intact, and explicitly ends successful sessions when the device should be released.
 </success_criteria>

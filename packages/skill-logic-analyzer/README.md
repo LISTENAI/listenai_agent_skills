@@ -58,7 +58,11 @@ Prefer the published package surface:
 import {
   createGenericLogicAnalyzerSkill,
   createLogicAnalyzerSkill,
+  inspectDsviewDecoder,
+  runDsviewDecoder,
   runGenericLogicAnalyzer,
+  type DsviewDecoderDetails,
+  type DsviewDecoderRunResult,
   type GenericLogicAnalyzerRequest,
   type GenericLogicAnalyzerResult
 } from "@listenai/skill-logic-analyzer";
@@ -73,6 +77,8 @@ Use one of these exports from the package root:
 - `createGenericLogicAnalyzerSkill(resourceManager, options?)`
 - `runGenericLogicAnalyzer(resourceManager, request, options?)`
 - `createLogicAnalyzerSkill(resourceManager, options?)`
+- `listDsviewDecoders(options?)` and `inspectDsviewDecoder(decoderId, options?)`
+- `runDsviewDecoder(request, options)`
 - request/result types from the same package-root surface
 
 Do not deep-import internal modules from host code.
@@ -86,9 +92,14 @@ Offline artifact mode keeps existing callers working and may omit `mode` or set 
 ```ts
 import {
   runGenericLogicAnalyzer,
+  type DsviewDecodeCommandRunner,
+  type DsviewDecoderDetails,
   type GenericLogicAnalyzerRequest,
   type GenericLogicAnalyzerResult
 } from "@listenai/skill-logic-analyzer";
+
+declare const inspectedI2cDecoder: DsviewDecoderDetails;
+declare const dsviewDecodeCommandRunner: DsviewDecodeCommandRunner;
 
 const request: GenericLogicAnalyzerRequest = {
   session: {
@@ -115,6 +126,17 @@ const request: GenericLogicAnalyzerRequest = {
     capturedAt: "2026-03-26T00:00:01.000Z",
     text: "Time [us],D0,D1\n0,0,1\n1,1,1\n2,1,0\n3,0,0"
   },
+  decode: {
+    decoderId: "1:i2c",
+    decoder: inspectedI2cDecoder,
+    channelMappings: {
+      scl: "D0",
+      sda: "D1"
+    },
+    decoderOptions: {
+      address_format: "'unshifted'"
+    }
+  },
   cleanup: {
     endedAt: "2026-03-26T00:02:00.000Z"
   }
@@ -122,9 +144,20 @@ const request: GenericLogicAnalyzerRequest = {
 
 const result: GenericLogicAnalyzerResult = await runGenericLogicAnalyzer(
   resourceManager,
-  request
+  request,
+  {
+    decodeRunnerOptions: {
+      executeCommand: dsviewDecodeCommandRunner,
+      decodeRuntimePath: "/opt/dsview/lib/libdsview_decode_runtime.so",
+      decoderDir: "/opt/dsview/decoders"
+    }
+  }
 );
 ```
+
+The `decode` section is optional and is currently an offline, fixture-backed contract: callers provide a raw or text artifact plus already-inspected decoder metadata, then inject the `dsview-cli` command runner used by the skill-owned decode seam. Omit `decode` to keep the baseline waveform-only behavior.
+
+Do not use protocol decode as a replacement for waveform analysis. Decode output is additive: successful offline decode results still include the normalized capture and waveform `analysis`, then add a `decode` report with annotations, rows, command diagnostics, artifact summary, and temp cleanup status. Resource-manager remains the live capture authority; protocol decode does not allocate hardware or supersede the live `captureSession` path.
 
 Live mode starts a session, captures through the shared manager/client seam, and returns the nested `captureSession` payload on success:
 
@@ -162,7 +195,7 @@ const liveRequest: GenericLogicAnalyzerRequest = {
 const liveResult = await runGenericLogicAnalyzer(resourceManager, liveRequest);
 ```
 
-Keep the nested `session`, `artifact` or `capture`, and `cleanup` contracts intact. Do not flatten them into a host-specific schema.
+Keep the nested `session`, `artifact`, optional `decode`, `capture`, and `cleanup` contracts intact. Do not flatten them into a host-specific schema.
 
 ## Result handling
 
@@ -173,6 +206,7 @@ Successful result:
 - `ok: true`
 - `phase: "completed"`
 - Includes the allocated session, normalized capture metadata, waveform analysis output, and `captureSession` details for live runs
+- Includes `decode` only when an offline request supplied the optional decode section and `dsview-cli decode run` succeeded
 
 Failure phases:
 
@@ -180,8 +214,10 @@ Failure phases:
 - `start-session` - the session seam rejected the request or allocation failed
 - `live-capture` - live capture request validation, runtime failure, or malformed live artifact after allocation
 - `load-capture` - the capture-loader seam rejected the offline artifact or the live artifact loaded from `captureSession`
+- `decode-validation` - inspected decoder metadata rejected the requested decoder id, channel mappings, options, artifact payload, or missing decode runner
+- `decode-run` - `dsview-cli decode run` failed, timed out, returned a CLI error payload, or produced malformed decode output
 
-Treat nested payloads as authoritative diagnostics. Do not replace them with new prose-only error summaries. Malformed HTTP transport payloads from `HttpResourceManager` should still surface as thrown transport/parser errors instead of being rewritten into fake typed runner failures.
+Treat nested payloads as authoritative diagnostics. Do not replace them with new prose-only error summaries. For decode failures, branch on `result.phase` and inspect `result.decode.reason`, `code`, `message`, `detail`, `issues`, `artifact`, `command`, and `cleanup`; `command` includes command, args, stdout/stderr, exit code, signal, and native code when the CLI was invoked. Malformed HTTP transport payloads from `HttpResourceManager` should still surface as thrown transport/parser errors instead of being rewritten into fake typed runner failures.
 
 ## Explicit cleanup after success
 
