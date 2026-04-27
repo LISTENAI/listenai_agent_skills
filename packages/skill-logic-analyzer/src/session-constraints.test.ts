@@ -90,7 +90,7 @@ const createSnapshot = (
       platform: "macos",
       backendKind: "dsview-cli",
       readiness: "ready",
-      version: "1.3.1",
+      version: "1.2.2",
       checkedAt: refreshedAt,
       diagnostics: []
     }
@@ -333,7 +333,7 @@ describe("evaluateStartSessionConstraints", () => {
             platform: "macos",
             backendKind: "dsview-cli",
             readiness: "degraded",
-            version: "1.3.1",
+            version: "1.2.2",
             checkedAt: refreshedAt,
             diagnostics: [
               createDiagnostic({

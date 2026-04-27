@@ -167,7 +167,7 @@ const createReadyInventorySnapshot = (
       platform: "macos",
       backendKind: "dsview-cli",
       readiness: "ready",
-      version: "1.3.1",
+      version: "1.2.2",
       checkedAt: connectedAt,
       diagnostics: []
     }

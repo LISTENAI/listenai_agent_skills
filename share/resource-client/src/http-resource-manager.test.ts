@@ -97,7 +97,7 @@ const mixedDslogicSnapshot: InventorySnapshot = {
       platform: "linux",
       backendKind: "dsview-cli",
       readiness: "ready",
-      version: "1.3.1",
+      version: "1.2.2",
       checkedAt: "2026-03-30T10:00:00.000Z",
       diagnostics: [],
     },
@@ -437,6 +437,11 @@ describe("HttpResourceManager", () => {
             formatHint: "srzip",
             mediaType: "application/octet-stream",
             capturedAt: "2026-03-30T10:00:02.000Z",
+            sampling: {
+              sampleRateHz: 1_000_000,
+              totalSamples: 256,
+              requestedSampleLimit: 256,
+            },
             text: "trace",
             bytes: [1, 2, 3, 4],
           },
@@ -449,6 +454,25 @@ describe("HttpResourceManager", () => {
             textLength: 5,
             hasText: true,
           },
+          auxiliaryArtifacts: [
+            {
+              sourceName: "capture.json",
+              formatHint: "dsview-capture-metadata",
+              mediaType: "application/json",
+              text: '{"capture":{"actual_sample_count":256}}',
+            },
+          ],
+          auxiliaryArtifactSummaries: [
+            {
+              sourceName: "capture.json",
+              formatHint: "dsview-capture-metadata",
+              mediaType: "application/json",
+              capturedAt: null,
+              byteLength: null,
+              textLength: 37,
+              hasText: true,
+            },
+          ],
         }),
       );
 
@@ -465,6 +489,11 @@ describe("HttpResourceManager", () => {
           formatHint: "srzip",
           mediaType: "application/octet-stream",
           capturedAt: "2026-03-30T10:00:02.000Z",
+          sampling: {
+            sampleRateHz: 1_000_000,
+            totalSamples: 256,
+            requestedSampleLimit: 256,
+          },
           text: "trace",
           bytes: new Uint8Array([1, 2, 3, 4]),
         },
@@ -477,6 +506,25 @@ describe("HttpResourceManager", () => {
           textLength: 5,
           hasText: true,
         },
+        auxiliaryArtifacts: [
+          {
+            sourceName: "capture.json",
+            formatHint: "dsview-capture-metadata",
+            mediaType: "application/json",
+            text: '{"capture":{"actual_sample_count":256}}',
+          },
+        ],
+        auxiliaryArtifactSummaries: [
+          {
+            sourceName: "capture.json",
+            formatHint: "dsview-capture-metadata",
+            mediaType: "application/json",
+            capturedAt: null,
+            byteLength: null,
+            textLength: 37,
+            hasText: true,
+          },
+        ],
       });
       expect(fetch).toHaveBeenCalledWith(BASE + "/capture/live", {
         method: "POST",

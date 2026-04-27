@@ -32,7 +32,10 @@ const encodeLiveCaptureResult = (
 
   return {
     ...result,
-    artifact: encodeLiveCaptureArtifact(result.artifact)
+    artifact: encodeLiveCaptureArtifact(result.artifact),
+    auxiliaryArtifacts: result.auxiliaryArtifacts?.map((artifact) =>
+      encodeLiveCaptureArtifact(artifact)
+    )
   };
 };
 

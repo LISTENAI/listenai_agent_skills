@@ -118,6 +118,8 @@ export interface LiveCaptureSuccess {
   requestedAt: string;
   artifact: LiveCaptureArtifact;
   artifactSummary: LiveCaptureArtifactSummary;
+  auxiliaryArtifacts?: readonly LiveCaptureArtifact[];
+  auxiliaryArtifactSummaries?: readonly LiveCaptureArtifactSummary[];
 }
 
 export interface LiveCaptureFailure {
@@ -159,3 +161,7 @@ export const summarizeLiveCaptureArtifact = (
   textLength: typeof artifact.text === "string" ? artifact.text.length : null,
   hasText: typeof artifact.text === "string"
 });
+
+export const summarizeLiveCaptureArtifacts = (
+  artifacts: readonly LiveCaptureArtifact[]
+): readonly LiveCaptureArtifactSummary[] => artifacts.map((artifact) => summarizeLiveCaptureArtifact(artifact));

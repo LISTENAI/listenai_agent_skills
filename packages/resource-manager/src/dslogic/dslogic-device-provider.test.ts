@@ -59,7 +59,7 @@ describe("DslogicDeviceProvider", () => {
           platform: "linux",
           backendKind: "dsview-cli",
           readiness: "ready",
-          version: "1.0.3",
+          version: "1.2.2",
           checkedAt: refreshedAt,
           diagnostics: []
         }

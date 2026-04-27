@@ -73,6 +73,7 @@ export interface DslogicNativeCaptureSuccess {
   backendVersion?: string | null
   diagnosticOutput?: DslogicNativeCaptureStreamValue
   artifact: LiveCaptureArtifact
+  auxiliaryArtifacts?: readonly LiveCaptureArtifact[]
 }
 
 export interface DslogicNativeCaptureFailure {
@@ -159,6 +160,7 @@ export interface CreateDslogicNativeRuntimeOptions {
   getHostOs?: () => NodeJS.Platform
   getHostArch?: () => NodeJS.Architecture
   dsviewCliPath?: string
+  dsviewResourceDir?: string
   probeTimeoutMs?: number
   executeCommand?: DslogicNativeCommandRunner
   probeRuntime?: (
@@ -800,29 +802,34 @@ export const createDefaultDslogicNativeLiveCaptureBackend = (
       const sampleLimit = resolveSampleLimit(request)
 
       try {
+        const captureArgs = [
+          "capture",
+          ...(options.dsviewResourceDir?.trim()
+            ? ["--resource-dir", options.dsviewResourceDir.trim()]
+            : []),
+          "--format",
+          "json",
+          "--handle",
+          String(selectedDevice.handle),
+          "--sample-rate-hz",
+          String(request.session.sampling.sampleRateHz),
+          "--sample-limit",
+          String(sampleLimit),
+          "--channels",
+          channelResolution.indexes.join(","),
+          "--output",
+          outputPath,
+          "--metadata-output",
+          metadataPath,
+          "--wait-timeout-ms",
+          String(timeoutMs),
+          "--poll-interval-ms",
+          String(DEFAULT_DSVIEW_CAPTURE_POLL_INTERVAL_MS)
+        ]
+
         const captureResult = await executeCommand(
           binaryPath,
-          [
-            "capture",
-            "--format",
-            "json",
-            "--handle",
-            String(selectedDevice.handle),
-            "--sample-rate-hz",
-            String(request.session.sampling.sampleRateHz),
-            "--sample-limit",
-            String(sampleLimit),
-            "--channels",
-            channelResolution.indexes.join(","),
-            "--output",
-            outputPath,
-            "--metadata-output",
-            metadataPath,
-            "--wait-timeout-ms",
-            String(timeoutMs),
-            "--poll-interval-ms",
-            String(DEFAULT_DSVIEW_CAPTURE_POLL_INTERVAL_MS)
-          ],
+          captureArgs,
           {
             timeoutMs,
             maxBufferBytes: DEFAULT_DSLOGIC_CAPTURE_MAX_BUFFER_BYTES
@@ -877,6 +884,7 @@ export const createDefaultDslogicNativeLiveCaptureBackend = (
           }
         }
 
+        let metadataText: string | null = null
         let metadata: DsviewCaptureMetadata = {
           toolVersion: runtimeSnapshot.runtime.version,
           capturedAt: null,
@@ -885,9 +893,10 @@ export const createDefaultDslogicNativeLiveCaptureBackend = (
           requestedSampleLimit: sampleLimit
         }
         try {
+          metadataText = await readTextFile(resolvedMetadataPath)
           metadata = {
             ...metadata,
-            ...parseCaptureMetadata(await readTextFile(resolvedMetadataPath))
+            ...parseCaptureMetadata(metadataText)
           }
         } catch {
           // Capture metadata is optional, but when present it lets upstream loaders normalize sparse VCD output truthfully.
@@ -908,11 +917,23 @@ export const createDefaultDslogicNativeLiveCaptureBackend = (
           ...(metadata.totalSamples !== null ? { totalSamples: metadata.totalSamples } : {})
         }
 
+        const auxiliaryArtifacts: LiveCaptureArtifact[] = []
+        if (typeof metadataText === "string" && metadataText.length > 0) {
+          auxiliaryArtifacts.push({
+            sourceName: basename(resolvedMetadataPath),
+            formatHint: "dsview-capture-metadata",
+            mediaType: "application/json",
+            ...(metadata.capturedAt ? { capturedAt: metadata.capturedAt } : {}),
+            text: metadataText
+          })
+        }
+
         return {
           ok: true,
           backendVersion: metadata.toolVersion ?? runtimeSnapshot.runtime.version,
           diagnosticOutput: commandOutput.length > 0 ? { text: commandOutput } : undefined,
-          artifact
+          artifact,
+          ...(auxiliaryArtifacts.length > 0 ? { auxiliaryArtifacts } : {})
         }
       } finally {
         await removeTempDir(tempDir)

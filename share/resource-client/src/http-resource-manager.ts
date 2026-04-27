@@ -21,6 +21,7 @@ import {
   type InventoryProviderKind,
   type InventorySnapshot,
   type LiveCaptureArtifact,
+  type LiveCaptureArtifactSampling,
   type LiveCaptureArtifactSummary,
   type LiveCaptureFailureDiagnostics,
   type LiveCaptureFailureKind,
@@ -453,6 +454,38 @@ const parseLiveCaptureByteArray = (
   );
 };
 
+const parseLiveCaptureArtifactSampling = (
+  value: unknown,
+  path: string,
+): LiveCaptureArtifactSampling => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed live capture response at ${path}`);
+  }
+
+  const sampling: LiveCaptureArtifactSampling = {};
+
+  if (value.sampleRateHz !== undefined) {
+    sampling.sampleRateHz = readLiveCaptureNumber(
+      value.sampleRateHz,
+      `${path}.sampleRateHz`,
+    ) as number;
+  }
+  if (value.totalSamples !== undefined) {
+    sampling.totalSamples = readLiveCaptureNumber(
+      value.totalSamples,
+      `${path}.totalSamples`,
+    ) as number;
+  }
+  if (value.requestedSampleLimit !== undefined) {
+    sampling.requestedSampleLimit = readLiveCaptureNumber(
+      value.requestedSampleLimit,
+      `${path}.requestedSampleLimit`,
+    ) as number;
+  }
+
+  return sampling;
+};
+
 const parseLiveCaptureArtifact = (
   value: unknown,
   path: string,
@@ -486,6 +519,12 @@ const parseLiveCaptureArtifact = (
       value.capturedAt,
       `${path}.capturedAt`,
     ) as string;
+  }
+  if (value.sampling !== undefined) {
+    artifact.sampling = parseLiveCaptureArtifactSampling(
+      value.sampling,
+      `${path}.sampling`,
+    );
   }
   if (value.text !== undefined) {
     artifact.text = readLiveCaptureString(value.text, `${path}.text`) as string;
@@ -616,6 +655,31 @@ const parseLiveCaptureResult = (value: unknown): LiveCaptureResult => {
         value.artifactSummary,
         "root.artifactSummary",
       ),
+      auxiliaryArtifacts:
+        value.auxiliaryArtifacts === undefined
+          ? undefined
+          : Array.isArray(value.auxiliaryArtifacts)
+            ? value.auxiliaryArtifacts.map((entry, index) =>
+                parseLiveCaptureArtifact(entry, `root.auxiliaryArtifacts[${index}]`),
+              )
+            : (() => {
+                throw new Error("Malformed live capture response at root.auxiliaryArtifacts");
+              })(),
+      auxiliaryArtifactSummaries:
+        value.auxiliaryArtifactSummaries === undefined
+          ? undefined
+          : Array.isArray(value.auxiliaryArtifactSummaries)
+            ? value.auxiliaryArtifactSummaries.map((entry, index) =>
+                parseLiveCaptureArtifactSummary(
+                  entry,
+                  `root.auxiliaryArtifactSummaries[${index}]`,
+                ),
+              )
+            : (() => {
+                throw new Error(
+                  "Malformed live capture response at root.auxiliaryArtifactSummaries",
+                );
+              })(),
     };
   }
 

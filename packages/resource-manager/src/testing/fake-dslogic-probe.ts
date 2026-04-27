@@ -63,7 +63,7 @@ export const createDslogicProbeSnapshot = (options: {
           : (options.libraryPath !== undefined
               ? options.libraryPath
               : "/Applications/DSView.app/Contents/MacOS/dsview-cli"),
-      version: options.version !== undefined ? options.version : "1.0.3"
+      version: options.version !== undefined ? options.version : "1.2.2"
     },
     devices: (options.devices ?? []).map(cloneCandidate),
     diagnostics: (options.diagnostics ?? []).map(cloneDiagnostic)

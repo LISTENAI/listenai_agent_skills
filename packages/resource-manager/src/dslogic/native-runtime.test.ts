@@ -450,7 +450,7 @@ describe("native-runtime", () => {
             state: "ready",
             libraryPath: "/usr/bin/dsview-cli",
             binaryPath: "/usr/bin/dsview-cli",
-            version: "1.0.3"
+            version: "1.2.2"
           },
           devices: [],
           diagnostics: []
@@ -458,6 +458,7 @@ describe("native-runtime", () => {
       },
       executeCommand: runner,
       createTempDir: async () => "/tmp/dslogic-capture-test",
+      dsviewResourceDir: "/opt/dsview/resources",
       removeTempDir: async (path) => {
         removedTempDirs.push(path)
       },
@@ -469,7 +470,7 @@ describe("native-runtime", () => {
         if (path.endsWith(".json")) {
           return JSON.stringify({
             tool: {
-              version: "v1.0.3"
+              version: "v1.2.2"
             },
             capture: {
               timestamp_utc: "2026-04-02T04:00:01.000Z",
@@ -486,7 +487,7 @@ describe("native-runtime", () => {
 
     await expect(backend.capture(createCaptureRequest())).resolves.toEqual({
       ok: true,
-      backendVersion: "v1.0.3",
+      backendVersion: "v1.2.2",
       diagnosticOutput: {
         text: "sr: lib_main: Start collect.\n{\n  \"selected_handle\": 1,\n  \"completion\": \"clean_success\",\n  \"artifacts\": {\n    \"vcd_path\": \"/tmp/dslogic-capture-test/dslogic-plus.vcd\",\n    \"metadata_path\": \"/tmp/dslogic-capture-test/dslogic-plus.json\"\n  }\n}\n"
       },
@@ -501,7 +502,26 @@ describe("native-runtime", () => {
           requestedSampleLimit: 4_000
         },
         text: "$date\n  2026-04-02T04:00:00.000Z\n$end\n#0\n1!\n"
-      }
+      },
+      auxiliaryArtifacts: [
+        {
+          sourceName: "dslogic-plus.json",
+          formatHint: "dsview-capture-metadata",
+          mediaType: "application/json",
+          capturedAt: "2026-04-02T04:00:01.000Z",
+          text: JSON.stringify({
+            tool: {
+              version: "v1.2.2"
+            },
+            capture: {
+              timestamp_utc: "2026-04-02T04:00:01.000Z",
+              sample_rate_hz: 1_000_000,
+              actual_sample_count: 256,
+              requested_sample_limit: 4_000
+            }
+          })
+        }
+      ]
     })
     expect(calls).toEqual([
       {
@@ -514,6 +534,8 @@ describe("native-runtime", () => {
         command: "/usr/bin/dsview-cli",
         args: [
           "capture",
+          "--resource-dir",
+          "/opt/dsview/resources",
           "--format",
           "json",
           "--handle",

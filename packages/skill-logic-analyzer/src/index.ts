@@ -6,5 +6,7 @@ export * from "./capture-loader.js";
 export * from "./session-constraints.js";
 export * from "./logic-analyzer-skill.js";
 export * from "./generic-skill.js";
+export * from "./decoder-discovery.js";
+export * from "./decoder-runner.js";
 export * from "./claude-skill-installer.js";
 export * from "./codex-skill-installer.js";

@@ -37,6 +37,11 @@ const parseOptionalIntervalMs = (rawValue: string | undefined, name: string): nu
   return parsed
 }
 
+const parseOptionalPath = (rawValue: string | undefined): string | undefined => {
+  const trimmed = rawValue?.trim()
+  return trimmed && trimmed.length > 0 ? trimmed : undefined
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -61,6 +66,14 @@ async function main() {
       leaseScanIntervalMs: {
         type: "string",
         default: process.env.RESOURCE_MANAGER_LEASE_SCAN_INTERVAL_MS
+      },
+      dsviewCliPath: {
+        type: "string",
+        default: process.env.RESOURCE_MANAGER_DSVIEW_CLI_PATH
+      },
+      dsviewResourceDir: {
+        type: "string",
+        default: process.env.RESOURCE_MANAGER_DSVIEW_RESOURCE_DIR
       }
     }
   })
@@ -77,13 +90,20 @@ async function main() {
     values.leaseScanIntervalMs,
     "leaseScanIntervalMs"
   )
+  const dsviewCliPath = parseOptionalPath(values.dsviewCliPath)
+  const dsviewResourceDir = parseOptionalPath(values.dsviewResourceDir)
 
   const provider = createDeviceProvider({
     providerKind,
     fakeInventory,
     dslogic:
       providerKind === "dslogic"
-        ? { liveCaptureRunner: createDefaultDslogicNativeLiveCaptureBackend() }
+        ? {
+            liveCaptureRunner: createDefaultDslogicNativeLiveCaptureBackend({
+              dsviewCliPath,
+              dsviewResourceDir
+            })
+          }
         : undefined
   })
   const manager = new InMemoryResourceManager(provider)

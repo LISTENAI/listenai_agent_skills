@@ -106,7 +106,7 @@ describe("backend-probe", () => {
         state: "ready",
         libraryPath: host.platform === "linux" ? "/home/test/.local/bin/dsview-cli" : null,
         binaryPath: host.platform === "linux" ? "/home/test/.local/bin/dsview-cli" : null,
-        version: "1.0.3"
+        version: "1.2.2"
       },
       devices: [],
       diagnostics: []
@@ -140,7 +140,7 @@ describe("backend-probe", () => {
         state: "ready",
         libraryPath: "/home/test/.local/bin/dsview-cli",
         binaryPath: "/home/test/.local/bin/dsview-cli",
-        version: "1.0.3"
+        version: "1.2.2"
       },
       devices: [
         {
@@ -173,7 +173,7 @@ describe("backend-probe", () => {
         state: "ready",
         libraryPath: host.platform === "macos" ? "/Applications/DSView.app/Contents/MacOS/dsview-cli" : null,
         binaryPath: host.platform === "macos" ? "/Applications/DSView.app/Contents/MacOS/dsview-cli" : null,
-        version: "1.0.3"
+        version: "1.2.2"
       },
       devices: [],
       diagnostics: []
@@ -199,7 +199,7 @@ describe("backend-probe", () => {
         state: "ready",
         libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
         binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
-        version: "1.0.3"
+        version: "1.2.2"
       },
       devices: [
         {
@@ -235,7 +235,7 @@ describe("backend-probe", () => {
         state: "timeout",
         libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
         binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
-        version: "1.0.3"
+        version: "1.2.2"
       },
       devices: [],
       diagnostics: [
@@ -244,7 +244,7 @@ describe("backend-probe", () => {
           message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
           libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
           binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
-          backendVersion: "1.0.3"
+          backendVersion: "1.2.2"
         }
       ]
     })
@@ -269,7 +269,7 @@ describe("backend-probe", () => {
         state: "timeout",
         libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
         binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
-        version: "1.0.3"
+        version: "1.2.2"
       },
       devices: [],
       diagnostics: [
@@ -278,7 +278,7 @@ describe("backend-probe", () => {
           message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
           libraryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
           binaryPath: "/Applications/DSView.app/Contents/MacOS/dsview-cli",
-          backendVersion: "1.0.3"
+          backendVersion: "1.2.2"
         }
       ]
     })
@@ -290,7 +290,7 @@ describe("backend-probe", () => {
         message: "dsview-cli runtime probe timed out before readiness was confirmed on macos.",
         platform: "macos",
         backendKind: "dsview-cli",
-        backendVersion: "1.0.3"
+        backendVersion: "1.2.2"
       }
     ])
   })

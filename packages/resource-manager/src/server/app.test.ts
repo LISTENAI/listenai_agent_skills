@@ -1288,6 +1288,11 @@ describe("Hono app routes", () => {
         requestedAt: request.requestedAt,
         artifact: {
           sourceName: "capture.sr",
+          sampling: {
+            sampleRateHz: 1_000_000,
+            totalSamples: 3,
+            requestedSampleLimit: 3
+          },
           bytes: new Uint8Array([7, 8, 9])
         },
         artifactSummary: {
@@ -1298,7 +1303,15 @@ describe("Hono app routes", () => {
           byteLength: 3,
           textLength: null,
           hasText: false
-        }
+        },
+        auxiliaryArtifacts: [
+          {
+            sourceName: "capture.json",
+            formatHint: "dsview-capture-metadata",
+            mediaType: "application/json",
+            text: '{"capture":{"actual_sample_count":3}}'
+          }
+        ]
       })
     } as SnapshotResourceManager;
     const leaseManager = new LeaseManager();
@@ -1319,6 +1332,11 @@ describe("Hono app routes", () => {
       requestedAt: request.requestedAt,
       artifact: {
         sourceName: "capture.sr",
+        sampling: {
+          sampleRateHz: 1_000_000,
+          totalSamples: 3,
+          requestedSampleLimit: 3
+        },
         bytes: [7, 8, 9]
       },
       artifactSummary: {
@@ -1329,7 +1347,15 @@ describe("Hono app routes", () => {
         byteLength: 3,
         textLength: null,
         hasText: false
-      }
+      },
+      auxiliaryArtifacts: [
+        {
+          sourceName: "capture.json",
+          formatHint: "dsview-capture-metadata",
+          mediaType: "application/json",
+          text: '{"capture":{"actual_sample_count":3}}'
+        }
+      ]
     });
   });
 

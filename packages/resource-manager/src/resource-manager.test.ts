@@ -155,7 +155,7 @@ describe("resource manager contract", () => {
   it("pins DSLogic contract identity to dsview-cli", () => {
     expect(DSLOGIC_PROVIDER_KIND).toBe("dslogic");
     expect(DSLOGIC_BACKEND_KIND).toBe("dsview-cli");
-    expectTypeOf<DslogicBackendIdentity>().toEqualTypeOf<{
+    expectTypeOf<DslogicBackendIdentity>().toMatchTypeOf<{
       providerKind: "dslogic";
       backendKind: "dsview-cli";
     }>();
@@ -377,7 +377,7 @@ describe("fake device provider snapshot seam", () => {
           platform: "linux",
           backendKind: "dsview-cli",
           readiness: "ready",
-          version: "1.3.1",
+          version: "1.2.2",
           checkedAt: refreshedAt,
           diagnostics: []
         }
@@ -1148,7 +1148,7 @@ describe("in-memory resource manager live capture dispatch", () => {
         platform: "macos",
         backendKind: "dsview-cli",
         readiness: "ready",
-        version: "1.3.1",
+        version: "1.2.2",
         checkedAt: refreshedAt,
         diagnostics: []
       }

@@ -1,6 +1,8 @@
 import {
   DSLOGIC_BACKEND_KIND,
   DSLOGIC_PROVIDER_KIND,
+  summarizeLiveCaptureArtifact,
+  summarizeLiveCaptureArtifacts,
   type DeviceRecord,
   type LiveCaptureArtifact,
   type LiveCaptureArtifactSummary,
@@ -106,15 +108,7 @@ const hasUsableArtifactPayload = (artifact: LiveCaptureArtifact): boolean => {
 
 const summarizeArtifact = (
   artifact: LiveCaptureArtifact
-): LiveCaptureArtifactSummary => ({
-  sourceName: artifact.sourceName ?? null,
-  formatHint: artifact.formatHint ?? null,
-  mediaType: artifact.mediaType ?? null,
-  capturedAt: artifact.capturedAt ?? null,
-  byteLength: artifact.bytes?.byteLength ?? null,
-  textLength: typeof artifact.text === "string" ? artifact.text.length : null,
-  hasText: typeof artifact.text === "string"
-});
+): LiveCaptureArtifactSummary => summarizeLiveCaptureArtifact(artifact);
 
 const buildFailure = (
   request: LiveCaptureRequest,
@@ -195,7 +189,8 @@ const validateSession = (
 
 const toSuccess = (
   request: LiveCaptureRequest,
-  artifact: LiveCaptureArtifact
+  artifact: LiveCaptureArtifact,
+  auxiliaryArtifacts: readonly LiveCaptureArtifact[] = []
 ): LiveCaptureSuccess => ({
   ok: true,
   providerKind: DSLOGIC_PROVIDER_KIND,
@@ -203,7 +198,13 @@ const toSuccess = (
   session: request.session,
   requestedAt: request.requestedAt,
   artifact,
-  artifactSummary: summarizeArtifact(artifact)
+  artifactSummary: summarizeArtifact(artifact),
+  ...(auxiliaryArtifacts.length > 0
+    ? {
+        auxiliaryArtifacts,
+        auxiliaryArtifactSummaries: summarizeLiveCaptureArtifacts(auxiliaryArtifacts)
+      }
+    : {})
 });
 
 const toFailureFromNative = (
@@ -256,7 +257,11 @@ export const captureDslogicLive = async (
     );
   }
 
-  return toSuccess(request, nativeResult.artifact);
+  return toSuccess(
+    request,
+    nativeResult.artifact,
+    nativeResult.auxiliaryArtifacts ?? []
+  );
 };
 
 export const supportsDslogicLiveCapture = (

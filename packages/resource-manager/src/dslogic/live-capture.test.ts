@@ -103,7 +103,7 @@ describe("DSLogic live capture seam", () => {
     }>();
 
     expectTypeOf<LiveCaptureSuccess>().toMatchTypeOf<{
-      ok: true;
+      ok: true,
       providerKind: string;
       backendKind: string;
       session: LiveCaptureSession;
@@ -118,6 +118,10 @@ describe("DSLogic live capture seam", () => {
         textLength: number | null;
         hasText: boolean;
       };
+      auxiliaryArtifacts?: readonly {
+        text?: string;
+        bytes?: Uint8Array;
+      }[];
     }>();
 
     expectTypeOf<LiveCaptureFailure>().toMatchTypeOf<{
@@ -140,7 +144,7 @@ describe("DSLogic live capture seam", () => {
       capturedRequest = incomingRequest;
       return {
         ok: true,
-        backendVersion: "1.0.3",
+        backendVersion: "1.2.2",
         artifact: {
           sourceName: "logic-1.vcd",
           formatHint: "dsview-vcd",
@@ -171,13 +175,14 @@ describe("DSLogic live capture seam", () => {
 
   it("returns a CaptureArtifactInput-compatible success result for a minimal 2-channel request", async () => {
     const artifactText = fixtureVcdText;
+    const metadataText = '{"capture":{"sample_rate_hz":1000000}}';
     const request = createLiveCaptureRequest(createSession(2), {
       requestedAt: "2026-03-30T10:00:05.000Z",
       timeoutMs: 2_000
     });
     const nativeCapture = createDslogicNativeLiveCapture(async () => ({
       ok: true,
-      backendVersion: "1.0.3",
+      backendVersion: "1.2.2",
       diagnosticOutput: { text: "capture ready" },
       artifact: {
         sourceName: "logic-1.vcd",
@@ -190,7 +195,16 @@ describe("DSLogic live capture seam", () => {
           requestedSampleLimit: 4
         },
         text: artifactText
-      }
+      },
+      auxiliaryArtifacts: [
+        {
+          sourceName: "logic-1.json",
+          formatHint: "dsview-capture-metadata",
+          mediaType: "application/json",
+          capturedAt: "2026-03-30T10:00:06.000Z",
+          text: metadataText
+        }
+      ]
     }));
 
     const result = await captureDslogicLive(request, { nativeCapture });
@@ -221,7 +235,27 @@ describe("DSLogic live capture seam", () => {
         byteLength: null,
         textLength: artifactText.length,
         hasText: true
-      }
+      },
+      auxiliaryArtifacts: [
+        {
+          sourceName: "logic-1.json",
+          formatHint: "dsview-capture-metadata",
+          mediaType: "application/json",
+          capturedAt: "2026-03-30T10:00:06.000Z",
+          text: metadataText
+        }
+      ],
+      auxiliaryArtifactSummaries: [
+        {
+          sourceName: "logic-1.json",
+          formatHint: "dsview-capture-metadata",
+          mediaType: "application/json",
+          capturedAt: "2026-03-30T10:00:06.000Z",
+          byteLength: null,
+          textLength: metadataText.length,
+          hasText: true
+        }
+      ]
     });
   });
 
@@ -342,7 +376,7 @@ describe("DSLogic live capture seam", () => {
       kind: "timeout",
       phase: "capture",
       message: "dsview-cli capture timed out.",
-      backendVersion: "1.0.3",
+      backendVersion: "1.2.2",
       timeoutMs: 3_000,
       captureOutput: { text: captureOutput },
       diagnosticOutput: { text: "still waiting" }
@@ -356,7 +390,7 @@ describe("DSLogic live capture seam", () => {
       kind: "timeout",
       diagnostics: {
         phase: "capture",
-        backendVersion: "1.0.3",
+        backendVersion: "1.2.2",
         timeoutMs: 3_000,
         captureOutput: {
           kind: "text",
@@ -379,7 +413,7 @@ describe("DSLogic live capture seam", () => {
       kind: "capture-failed",
       phase: "capture",
       message: "dsview-cli failed to arm the device.",
-      backendVersion: "1.0.3",
+      backendVersion: "1.2.2",
       nativeCode: "SR_ERR_BUSY",
       diagnosticOutput: { text: "device busy" }
     }));
@@ -392,7 +426,7 @@ describe("DSLogic live capture seam", () => {
       kind: "capture-failed",
       diagnostics: {
         phase: "capture",
-        backendVersion: "1.0.3",
+        backendVersion: "1.2.2",
         nativeCode: "SR_ERR_BUSY",
         diagnosticOutput: {
           kind: "text",
@@ -406,7 +440,7 @@ describe("DSLogic live capture seam", () => {
     const request = createLiveCaptureRequest(createSession(2));
     const nativeCapture = createDslogicNativeLiveCapture(async () => ({
       ok: true,
-      backendVersion: "1.0.3",
+      backendVersion: "1.2.2",
       diagnosticOutput: { text: "capture complete" },
       artifact: {
         sourceName: "logic-1.vcd",
@@ -437,7 +471,7 @@ describe("DSLogic live capture seam", () => {
         phase: "collect-artifact",
         providerKind: "dslogic",
         backendKind: "dsview-cli",
-        backendVersion: "1.0.3",
+        backendVersion: "1.2.2",
         timeoutMs: 15000,
         nativeCode: null,
         captureOutput: null,
