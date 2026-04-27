@@ -22,8 +22,21 @@ import {
   loadLogicCapture,
   type CaptureLoaderOptions
 } from "./capture-loader.js";
-import { analyzeWaveformCapture } from "./waveform-analyzer.js";
+import {
+  analyzeWaveformCapture,
+  markProtocolDecodeAvailable
+} from "./waveform-analyzer.js";
 import type { WaveformAnalysisResult } from "./analysis-contracts.js";
+import type { DsviewDecodeCommandRunner, DsviewDecoderDetails } from "./decoder-discovery.js";
+import { runDsviewDecoder } from "./decoder-runner.js";
+import type {
+  DsviewDecoderOptionValue,
+  DsviewDecoderRunFailure,
+  DsviewDecoderRunOptions,
+  DsviewDecoderRunSuccess,
+  DsviewDecoderValidationIssue
+} from "./decoder-runner.js";
+import { summarizeCaptureArtifact } from "./capture-contracts.js";
 import type { SnapshotResourceManager } from "@listenai/contracts";
 
 export const GENERIC_LOGIC_ANALYZER_MODES = ["artifact", "live"] as const;
@@ -35,6 +48,8 @@ export const GENERIC_LOGIC_ANALYZER_PHASES = [
   "start-session",
   "live-capture",
   "load-capture",
+  "decode-validation",
+  "decode-run",
   "completed"
 ] as const;
 export type GenericLogicAnalyzerPhase =
@@ -44,10 +59,18 @@ export interface GenericLogicAnalyzerCleanupConfig {
   endedAt: string;
 }
 
+export interface GenericLogicAnalyzerDecodeConfig {
+  decoderId: string;
+  decoder: DsviewDecoderDetails;
+  channelMappings: Readonly<Record<string, string>>;
+  decoderOptions?: Readonly<Record<string, DsviewDecoderOptionValue>>;
+}
+
 export interface GenericLogicAnalyzerOfflineRequest {
   mode?: "artifact";
   session: StartLogicAnalyzerSessionRequest;
   artifact: CaptureArtifactInput;
+  decode?: GenericLogicAnalyzerDecodeConfig;
   cleanup: GenericLogicAnalyzerCleanupConfig;
 }
 
@@ -166,12 +189,23 @@ export type GenericLogicAnalyzerLoadFailure =
   | GenericLogicAnalyzerOfflineLoadFailure
   | GenericLogicAnalyzerLiveLoadFailure;
 
+export interface GenericLogicAnalyzerDecodeFailure {
+  ok: false;
+  phase: "decode-validation" | "decode-run";
+  session: LogicAnalyzerSessionRecord;
+  capture: Extract<LoadCaptureResult, { ok: true }>;
+  analysis: WaveformAnalysisResult;
+  decode: DsviewDecoderRunFailure;
+  cleanup: GenericLogicAnalyzerCleanupAttempt;
+}
+
 export interface GenericLogicAnalyzerOfflineSuccess {
   ok: true;
   phase: "completed";
   session: LogicAnalyzerSessionRecord;
   capture: Extract<LoadCaptureResult, { ok: true }>;
   analysis: WaveformAnalysisResult;
+  decode?: DsviewDecoderRunSuccess;
 }
 
 export interface GenericLogicAnalyzerLiveSuccess {
@@ -192,11 +226,20 @@ export type GenericLogicAnalyzerResult =
   | GenericLogicAnalyzerRequestValidationFailure
   | GenericLogicAnalyzerStartFailure
   | GenericLogicAnalyzerLiveCaptureFailure
-  | GenericLogicAnalyzerLoadFailure;
+  | GenericLogicAnalyzerLoadFailure
+  | GenericLogicAnalyzerDecodeFailure;
+
+export type GenericLogicAnalyzerDecodeRunnerOptions = Omit<
+  DsviewDecoderRunOptions,
+  "executeCommand"
+> & {
+  executeCommand?: DsviewDecodeCommandRunner;
+};
 
 export interface GenericLogicAnalyzerSkillOptions {
   createSessionId?: () => string;
   captureLoaderOptions?: CaptureLoaderOptions;
+  decodeRunnerOptions?: GenericLogicAnalyzerDecodeRunnerOptions;
 }
 
 export interface GenericLogicAnalyzerSkill {
@@ -358,6 +401,14 @@ export const validateGenericLogicAnalyzerRequest = (
   } else {
     pushRequiredObjectIssue(issues, "artifact", value.artifact);
     pushArtifactPayloadIssue(issues, "artifact", value.artifact);
+
+    if (value.decode !== undefined && !isRecord(value.decode)) {
+      issues.push({
+        path: "decode",
+        code: "invalid-type",
+        message: "decode must be an object when provided."
+      });
+    }
   }
 
   if (issues.length > 0) {
@@ -390,6 +441,9 @@ export const validateGenericLogicAnalyzerRequest = (
       mode: "artifact",
       session: value.session as StartLogicAnalyzerSessionRequest,
       artifact: value.artifact as CaptureArtifactInput,
+      ...(value.decode !== undefined
+        ? { decode: value.decode as GenericLogicAnalyzerDecodeConfig }
+        : {}),
       cleanup: {
         endedAt: (value.cleanup as { endedAt: string }).endedAt
       }
@@ -427,6 +481,63 @@ const analyzeCompletedCapture = (
 ): WaveformAnalysisResult =>
   analyzeWaveformCapture(capture.capture, session.analysis);
 
+const createMissingDecodeRunnerFailure = (
+  request: GenericLogicAnalyzerDecodeConfig,
+  artifact: CaptureArtifactInput
+): DsviewDecoderRunFailure => {
+  const issue: DsviewDecoderValidationIssue = {
+    path: "options.decodeRunnerOptions.executeCommand",
+    code: "required",
+    message: "decodeRunnerOptions.executeCommand is required when decode is provided."
+  };
+
+  return {
+    ok: false,
+    phase: "decode-validation",
+    reason: "validation-failed",
+    code: "decode-validation-failed",
+    message: "Decode request failed validation.",
+    detail: null,
+    decoderId: typeof request.decoderId === "string" && request.decoderId.trim().length > 0
+      ? request.decoderId.trim()
+      : null,
+    artifact: summarizeCaptureArtifact(artifact),
+    issues: [issue],
+    command: null,
+    cleanup: {
+      attempted: false,
+      ok: false,
+      path: null,
+      message: null
+    }
+  };
+};
+
+const runRequestedDecode = async (
+  request: GenericLogicAnalyzerDecodeConfig,
+  artifact: CaptureArtifactInput,
+  options: GenericLogicAnalyzerSkillOptions
+): Promise<DsviewDecoderRunSuccess | DsviewDecoderRunFailure> => {
+  const executeCommand = options.decodeRunnerOptions?.executeCommand;
+  if (!executeCommand) {
+    return createMissingDecodeRunnerFailure(request, artifact);
+  }
+
+  return runDsviewDecoder(
+    {
+      decoderId: request.decoderId,
+      decoder: request.decoder,
+      artifact,
+      channelMappings: request.channelMappings,
+      decoderOptions: request.decoderOptions
+    },
+    {
+      ...options.decodeRunnerOptions,
+      executeCommand
+    }
+  );
+};
+
 const runOfflineGenericLogicAnalyzer = async (
   sessionSkill: GenericLogicAnalyzerSessionSkill,
   request: Extract<NormalizedGenericLogicAnalyzerRequest, { mode: "artifact" }>,
@@ -451,12 +562,38 @@ const runOfflineGenericLogicAnalyzer = async (
     };
   }
 
+  const analysis = analyzeCompletedCapture(session, capture);
+
+  if (request.decode) {
+    const decode = await runRequestedDecode(request.decode, request.artifact, options);
+    if (!decode.ok) {
+      return {
+        ok: false,
+        phase: decode.phase,
+        session,
+        capture,
+        analysis,
+        decode,
+        cleanup: await attemptCleanup(sessionSkill, request, session)
+      };
+    }
+
+    return {
+      ok: true,
+      phase: "completed",
+      session,
+      capture,
+      analysis: markProtocolDecodeAvailable(analysis),
+      decode
+    };
+  }
+
   return {
     ok: true,
     phase: "completed",
     session,
     capture,
-    analysis: analyzeCompletedCapture(session, capture)
+    analysis
   };
 };
 

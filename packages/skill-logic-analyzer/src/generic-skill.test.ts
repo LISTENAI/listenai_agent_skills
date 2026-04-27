@@ -10,6 +10,9 @@ import {
   GENERIC_LOGIC_ANALYZER_PHASES,
   createGenericLogicAnalyzerSkill,
   runGenericLogicAnalyzer,
+  type DsviewDecodeCommandResult,
+  type DsviewDecoderDetails,
+  type GenericLogicAnalyzerDecodeConfig,
   type GenericLogicAnalyzerRequest,
   type GenericLogicAnalyzerResult,
   type LogicAnalyzerSessionRecord,
@@ -142,6 +145,112 @@ type GenericLogicAnalyzerOfflineRequest = Exclude<
   { mode: "live" }
 >;
 
+const i2cDecoder: DsviewDecoderDetails = {
+  id: "1:i2c",
+  name: "1:I2C",
+  longname: "Inter-Integrated Circuit",
+  description: "Two-wire serial bus.",
+  license: "gplv2+",
+  inputs: [{ id: "logic" }],
+  outputs: [{ id: "i2c" }],
+  tags: ["Embedded/industrial"],
+  requiredChannelIds: ["scl", "sda"],
+  optionalChannelIds: [],
+  optionIds: ["address_format"],
+  annotationIds: ["start"],
+  annotationRowIds: ["bits"],
+  requiredChannels: [
+    {
+      id: "scl",
+      name: "SCL",
+      description: "Serial clock line",
+      order: 0,
+      channelType: 8,
+      idn: "dec_1i2c_chan_scl"
+    },
+    {
+      id: "sda",
+      name: "SDA",
+      description: "Serial data line",
+      order: 1,
+      channelType: 108,
+      idn: "dec_1i2c_chan_sda"
+    }
+  ],
+  optionalChannels: [],
+  options: [
+    {
+      id: "address_format",
+      idn: "dec_1i2c_opt_addr",
+      description: "Displayed slave address format",
+      defaultValue: "'unshifted'",
+      values: ["'shifted'", "'unshifted'"]
+    }
+  ],
+  annotations: [
+    {
+      id: "start",
+      label: "start",
+      description: "Start condition",
+      annotationType: 1000
+    }
+  ],
+  annotationRows: [
+    {
+      id: "bits",
+      description: "Bits",
+      annotationClasses: [5]
+    }
+  ]
+};
+
+const createDecodeConfig = (
+  overrides: Partial<GenericLogicAnalyzerDecodeConfig> = {}
+): GenericLogicAnalyzerDecodeConfig => ({
+  decoderId: "1:i2c",
+  decoder: i2cDecoder,
+  channelMappings: {
+    scl: "D0",
+    sda: "D1"
+  },
+  decoderOptions: {
+    address_format: "'unshifted'"
+  },
+  ...overrides
+});
+
+const createDecodeCommandRunner = (results: readonly DsviewDecodeCommandResult[]) => {
+  const queue = [...results];
+  const calls: Array<{
+    command: string;
+    args: readonly string[];
+    timeoutMs: number;
+    maxBufferBytes: number;
+  }> = [];
+
+  const executeCommand = async (
+    command: string,
+    args: readonly string[],
+    options: { timeoutMs: number; maxBufferBytes: number }
+  ): Promise<DsviewDecodeCommandResult> => {
+    calls.push({
+      command,
+      args: [...args],
+      timeoutMs: options.timeoutMs,
+      maxBufferBytes: options.maxBufferBytes
+    });
+
+    const next = queue.shift();
+    if (!next) {
+      throw new Error(`No queued decode result for ${command} ${args.join(" ")}`);
+    }
+
+    return next;
+  };
+
+  return { executeCommand, calls };
+};
+
 const createOfflineRequest = (
   overrides: Partial<GenericLogicAnalyzerOfflineRequest> = {}
 ): GenericLogicAnalyzerOfflineRequest => ({
@@ -216,6 +325,8 @@ describe("generic logic analyzer contract", () => {
       "start-session",
       "live-capture",
       "load-capture",
+      "decode-validation",
+      "decode-run",
       "completed"
     ]);
 
@@ -225,6 +336,11 @@ describe("generic logic analyzer contract", () => {
           session: { deviceId: string; sampling: { sampleRateHz: number } };
           artifact: { text?: string; bytes?: Uint8Array };
           cleanup: { endedAt: string };
+          decode?: {
+            decoderId: string;
+            decoder: DsviewDecoderDetails;
+            channelMappings: Readonly<Record<string, string>>;
+          };
         }
       | {
           mode: "live";
@@ -275,11 +391,21 @@ describe("generic logic analyzer contract", () => {
           };
         }
       | {
+          ok: false;
+          phase: "decode-validation" | "decode-run";
+          session: LogicAnalyzerSessionRecord;
+          capture: { ok: true; adapterId: string };
+          analysis: WaveformAnalysisResult;
+          decode: { ok: false; phase: "decode-validation" | "decode-run" };
+          cleanup: { attempted: true; result: { ok: boolean } };
+        }
+      | {
           ok: true;
           phase: "completed";
           session: LogicAnalyzerSessionRecord;
           capture: { ok: true; adapterId: string };
           analysis: WaveformAnalysisResult;
+          decode?: { ok: true; phase: "decode-run" };
         }
     >();
   });
@@ -312,12 +438,275 @@ describe("generic logic analyzer contract", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect("captureSession" in result).toBe(false);
+      expect("decode" in result).toBe(false);
       expect(result.analysis.captureSource).toEqual({
         adapterId: "sigrok-csv",
         sourceName: "capture.csv",
         capturedAt: "2026-03-26T00:00:01.000Z"
       });
     }
+  });
+
+  it("returns offline decode reports alongside waveform outputs when decode is requested", async () => {
+    const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
+    const resourceManager = createResourceManager(provider, {
+      now: createClock(connectedAt)
+    });
+    const payload = {
+      report: {
+        annotations: [
+          {
+            row: "bits",
+            start_sample: 0,
+            end_sample: 3,
+            text: ["START"]
+          }
+        ],
+        rows: [{ id: "bits", label: "Bits" }]
+      }
+    };
+    const { executeCommand, calls } = createDecodeCommandRunner([
+      {
+        ok: true,
+        stdout: JSON.stringify(payload),
+        stderr: ""
+      }
+    ]);
+    const skill = createGenericLogicAnalyzerSkill(resourceManager, {
+      createSessionId: () => "session-001",
+      decodeRunnerOptions: {
+        dsviewCliPath: "/opt/dsview/dsview-cli",
+        decodeRuntimePath: "/opt/dsview/lib/libdsview_decode_runtime.so",
+        decoderDir: "/opt/dsview/decoders",
+        timeoutMs: 1234,
+        maxBufferBytes: 4096,
+        executeCommand
+      }
+    });
+
+    const result = await skill.run(
+      createOfflineRequest({
+        decode: createDecodeConfig()
+      })
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      phase: "completed",
+      session: {
+        sessionId: "session-001",
+        deviceId: "logic-1"
+      },
+      capture: {
+        ok: true,
+        adapterId: "sigrok-csv"
+      },
+      decode: {
+        ok: true,
+        phase: "decode-run",
+        decoderId: "1:i2c",
+        report: {
+          decoderId: "1:i2c",
+          annotations: [
+            {
+              row: "bits",
+              start_sample: 0,
+              end_sample: 3,
+              text: ["START"]
+            }
+          ],
+          rows: [{ id: "bits", label: "Bits" }],
+          raw: payload
+        },
+        command: {
+          command: "/opt/dsview/dsview-cli",
+          stdout: JSON.stringify(payload),
+          exitCode: null,
+          nativeCode: null
+        },
+        cleanup: {
+          attempted: true,
+          ok: true
+        }
+      }
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.capabilityNotes.map((entry) => entry.code)).toEqual([
+        "focus-channels-applied"
+      ]);
+      expect(result.analysis.summaryText).not.toContain("no protocol decoding is attempted");
+      expect("captureSession" in result).toBe(false);
+    }
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      command: "/opt/dsview/dsview-cli",
+      timeoutMs: 1234,
+      maxBufferBytes: 4096
+    });
+    expect(calls[0]?.args).toEqual([
+      "decode",
+      "run",
+      "--decode-runtime",
+      "/opt/dsview/lib/libdsview_decode_runtime.so",
+      "--decoder-dir",
+      "/opt/dsview/decoders",
+      "--format",
+      "json",
+      "--decoder",
+      "1:i2c",
+      "--input",
+      expect.stringContaining("artifact.logic"),
+      "--channel",
+      "scl=D0",
+      "--channel",
+      "sda=D1",
+      "--option",
+      "address_format='unshifted'"
+    ]);
+  });
+
+  it("returns decode-validation failures with loaded capture, analysis, and session cleanup", async () => {
+    const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
+    const resourceManager = createResourceManager(provider, {
+      now: createClock(connectedAt)
+    });
+    const { executeCommand, calls } = createDecodeCommandRunner([]);
+    const skill = createGenericLogicAnalyzerSkill(resourceManager, {
+      createSessionId: () => "session-001",
+      decodeRunnerOptions: { executeCommand }
+    });
+
+    const result = await skill.run(
+      createOfflineRequest({
+        decode: createDecodeConfig({
+          channelMappings: { scl: "D0" }
+        })
+      })
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      phase: "decode-validation",
+      session: {
+        sessionId: "session-001",
+        deviceId: "logic-1"
+      },
+      capture: {
+        ok: true,
+        adapterId: "sigrok-csv"
+      },
+      decode: {
+        ok: false,
+        phase: "decode-validation",
+        reason: "validation-failed",
+        command: null,
+        cleanup: {
+          attempted: false,
+          ok: false
+        },
+        issues: [
+          expect.objectContaining({
+            path: "channelMappings.sda",
+            code: "missing-channel"
+          })
+        ]
+      },
+      cleanup: {
+        attempted: true,
+        request: {
+          sessionId: "session-001",
+          deviceId: "logic-1",
+          ownerSkillId: "logic-analyzer",
+          endedAt: cleanupAt
+        },
+        result: {
+          ok: true,
+          device: {
+            allocationState: "free",
+            ownerSkillId: null
+          }
+        }
+      }
+    });
+    expect(calls).toEqual([]);
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.phase === "decode-validation") {
+      expect(result.analysis.capabilityNotes.map((entry) => entry.code)).toContain(
+        "baseline-only-no-protocol-decoding"
+      );
+    }
+  });
+
+  it("returns decode-run failures with command diagnostics, temp cleanup, and session cleanup", async () => {
+    const provider = new FakeDeviceProvider(createReadyInventorySnapshot());
+    const resourceManager = createResourceManager(provider, {
+      now: createClock(connectedAt)
+    });
+    const cliError = {
+      code: "decoder_runtime_missing",
+      message: "decoder runtime could not be loaded",
+      detail: "Pass --decode-runtime or install bundled runtime."
+    };
+    const { executeCommand } = createDecodeCommandRunner([
+      {
+        ok: false,
+        reason: "failed",
+        stdout: JSON.stringify(cliError),
+        stderr: "native stderr",
+        exitCode: 2,
+        signal: null,
+        nativeCode: 2
+      }
+    ]);
+    const skill = createGenericLogicAnalyzerSkill(resourceManager, {
+      createSessionId: () => "session-001",
+      decodeRunnerOptions: { executeCommand }
+    });
+
+    const result = await skill.run(
+      createOfflineRequest({
+        decode: createDecodeConfig()
+      })
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      phase: "decode-run",
+      capture: {
+        ok: true,
+        adapterId: "sigrok-csv"
+      },
+      decode: {
+        ok: false,
+        phase: "decode-run",
+        reason: "cli-error",
+        code: "decoder_runtime_missing",
+        message: "decoder runtime could not be loaded",
+        detail: "Pass --decode-runtime or install bundled runtime.",
+        command: {
+          stdout: JSON.stringify(cliError),
+          stderr: "native stderr",
+          exitCode: 2,
+          signal: null,
+          nativeCode: 2
+        },
+        cleanup: {
+          attempted: true,
+          ok: true
+        }
+      },
+      cleanup: {
+        attempted: true,
+        result: {
+          ok: true,
+          device: {
+            allocationState: "free",
+            ownerSkillId: null
+          }
+        }
+      }
+    });
   });
 
   it("rejects unknown request discriminants before allocation", async () => {

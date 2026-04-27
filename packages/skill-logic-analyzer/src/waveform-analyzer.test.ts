@@ -9,6 +9,7 @@ import {
   WAVEFORM_PULSE_POLARITIES,
   analyzeWaveformCapture,
   getObservedEdgeKinds,
+  markProtocolDecodeAvailable,
   type LogicCapture,
   type WaveformAnalysisResult,
   type WaveformCapabilityNote,
@@ -78,6 +79,7 @@ describe("waveform analysis contract", () => {
       "baseline-only-no-protocol-decoding"
     ]);
     expect(typeof analyzeWaveformCapture).toBe("function");
+    expect(typeof markProtocolDecodeAvailable).toBe("function");
 
     expectTypeOf<WaveformCapabilityNote>().toMatchTypeOf<{
       code:
@@ -294,6 +296,28 @@ describe("waveform analysis contract", () => {
     });
     expect(result.summaryText).toContain("D0 3 rising/falling edges observed");
     expect(result.summaryText).toContain("no protocol decoding is attempted");
+  });
+
+  it("can remove the baseline-only protocol note after a separate protocol decode succeeds", () => {
+    const baseline = analyzeWaveformCapture(baseCapture, {
+      focusChannelIds: ["D0"],
+      edgePolicy: "all",
+      includePulseWidths: true,
+      timeReference: "capture-start"
+    });
+
+    const withDecode = markProtocolDecodeAvailable(baseline);
+
+    expect(baseline.capabilityNotes.map((entry) => entry.code)).toContain(
+      "baseline-only-no-protocol-decoding"
+    );
+    expect(baseline.summaryText).toContain("no protocol decoding is attempted");
+    expect(withDecode.capabilityNotes.map((entry) => entry.code)).not.toContain(
+      "baseline-only-no-protocol-decoding"
+    );
+    expect(withDecode.summaryText).not.toContain("no protocol decoding is attempted");
+    expect(withDecode.channels).toEqual(baseline.channels);
+    expect(withDecode.captureSource).toEqual(baseline.captureSource);
   });
 
   it("keeps filtered edges, time-reference shifts, and insufficient rhythm evidence explicit", () => {

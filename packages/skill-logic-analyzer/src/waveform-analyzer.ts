@@ -634,3 +634,24 @@ export const analyzeWaveformCapture = (
     summaryText: buildGlobalSummary(resultWithoutSummary)
   };
 };
+
+export const markProtocolDecodeAvailable = (
+  analysis: WaveformAnalysisResult
+): WaveformAnalysisResult => {
+  const capabilityNotes = analysis.capabilityNotes.filter(
+    (note) => note.code !== "baseline-only-no-protocol-decoding"
+  );
+  const resultWithoutSummary: Omit<WaveformAnalysisResult, "summaryText"> = {
+    captureSource: analysis.captureSource,
+    timing: analysis.timing,
+    analyzedChannelIds: analysis.analyzedChannelIds,
+    channels: analysis.channels,
+    anomalies: analysis.anomalies,
+    capabilityNotes
+  };
+
+  return {
+    ...resultWithoutSummary,
+    summaryText: buildGlobalSummary(resultWithoutSummary)
+  };
+};
