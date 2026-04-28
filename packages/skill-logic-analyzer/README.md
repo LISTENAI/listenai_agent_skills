@@ -13,9 +13,32 @@ The package publishes a machine-stable lookup contract in `package.json` under `
 
 Consumers that need to copy or inspect host-facing assets should read those package-relative paths from `package.json`, then resolve them within the package root. Paths that leave the package root are invalid.
 
+## Private registry setup
+
+`@listenai` packages are expected to resolve from the ListenAI private registry:
+
+```text
+https://registry-lpm.listenai.com
+```
+
+Configure the `@listenai` scope in npm, pnpm, yarn, or CI before installing. Do not commit auth tokens to the repository.
+
 ## Codex install and export
 
-The package ships a Codex-oriented installer CLI through the published bin:
+The package ships a Codex-oriented installer CLI through the published bin. The recommended user path is one-shot execution from the registry:
+
+```bash
+npm exec --package @listenai/skill-logic-analyzer -- \
+  listenai-logic-analyzer-install-codex ~/.codex/skills
+
+pnpm dlx --package @listenai/skill-logic-analyzer \
+  listenai-logic-analyzer-install-codex ~/.codex/skills
+
+yarn dlx @listenai/skill-logic-analyzer \
+  listenai-logic-analyzer-install-codex ~/.codex/skills
+```
+
+If the package is installed globally or as a project dependency, run the bin directly:
 
 ```bash
 listenai-logic-analyzer-install-codex <codex-skills-directory>
@@ -40,7 +63,20 @@ The installed files always come from this package's own `SKILL.md` and `README.m
 
 ## Claude Code install and export
 
-Claude Code continues to use the package-owned installer CLI and the same package asset contract:
+Claude Code uses the package-owned installer CLI and the same package asset contract. The recommended user path is one-shot execution from the registry:
+
+```bash
+npm exec --package @listenai/skill-logic-analyzer -- \
+  listenai-logic-analyzer-install-claude ~/.claude/skills
+
+pnpm dlx --package @listenai/skill-logic-analyzer \
+  listenai-logic-analyzer-install-claude ~/.claude/skills
+
+yarn dlx @listenai/skill-logic-analyzer \
+  listenai-logic-analyzer-install-claude ~/.claude/skills
+```
+
+If the package is installed globally or as a project dependency, run the bin directly:
 
 ```bash
 listenai-logic-analyzer-install-claude <claude-skills-directory>

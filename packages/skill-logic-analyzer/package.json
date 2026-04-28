@@ -4,24 +4,24 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./claude-skill-installer": {
-      "types": "./src/claude-skill-installer.ts",
-      "default": "./src/claude-skill-installer.ts"
+      "types": "./dist/claude-skill-installer.d.ts",
+      "import": "./dist/claude-skill-installer.js"
     },
     "./codex-skill-installer": {
-      "types": "./src/codex-skill-installer.ts",
-      "default": "./src/codex-skill-installer.ts"
+      "types": "./dist/codex-skill-installer.d.ts",
+      "import": "./dist/codex-skill-installer.js"
     },
     "./package.json": "./package.json",
     "./SKILL.md": "./SKILL.md",
     "./README.md": "./README.md"
   },
+  "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "src",
     "SKILL.md",
     "README.md",
     "package.json"
@@ -37,7 +37,7 @@
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "build": "rm -rf dist tsconfig.build.tsbuildinfo && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

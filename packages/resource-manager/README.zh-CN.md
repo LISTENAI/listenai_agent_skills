@@ -21,17 +21,52 @@ import {
 } from "@listenai/resource-manager";
 ```
 
-这个 package 还带有一个名为 `resource-manager` 的 CLI bin，指向 `src/cli.ts`。
+这个 package 还带有一个名为 `resource-manager` 的 CLI bin。发布包中的 bin 指向编译后的 `dist/cli.js`。
 
-## 前置条件
+## 私有 registry 配置
+
+`@listenai` packages 应从 ListenAI 私有 registry 解析：
+
+```text
+https://registry-lpm.listenai.com
+```
+
+安装前，请在 npm、pnpm、yarn 或 CI 环境中配置 `@listenai` scope。不要把 auth token 提交到仓库。
+
+## 从 registry 启动服务
+
+推荐的使用者路径是从私有 registry 运行 package binary：
+
+```bash
+npm exec --package @listenai/resource-manager -- \
+  resource-manager start --host 127.0.0.1 --port 7600
+
+pnpm dlx --package @listenai/resource-manager \
+  resource-manager start --host 127.0.0.1 --port 7600
+
+yarn dlx @listenai/resource-manager \
+  resource-manager start --host 127.0.0.1 --port 7600
+```
+
+M003 会为 agent 和长期本地工作流增加受管理的后台模式：
+
+```bash
+resource-manager start --daemon --host 127.0.0.1 --port 7600
+resource-manager status --json
+resource-manager stop
+```
+
+这个 daemon 设计为用户 home 下的全局单实例，可以跨终端会话、跨项目复用。在 daemon mode 发布前，前台启动仍是受支持的运行路径。
+
+## 从源码贡献时的前置条件
 
 - Node.js 22
 - pnpm 10.33.0
 - 在全新的 workspace 中，先从仓库根目录执行 `pnpm install --frozen-lockfile`
 
-## 从仓库内启动 server
+## 贡献时从仓库内启动 server
 
-如果你在仓库根目录中工作，最直接的开发命令是：
+源码 workspace 命令只面向贡献者。如果你在仓库根目录中工作，最直接的开发命令是：
 
 ```bash
 pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
@@ -39,7 +74,7 @@ pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --
 
 CLI 参数：
 
-- `--host`、`-h`：绑定地址，默认是 `127.0.0.1`
+- `--host`、`-h`：绑定地址，默认是 `0.0.0.0`，因此 dashboard 和 API 可从局域网访问；如果只想允许本机访问，请使用 `127.0.0.1`
 - `--port`、`-p`：绑定端口，默认是 `7600`
 - `--provider`：设备 provider，默认是 `dslogic`；做本地冒烟检查时可切到 `fake`
 - `--inventoryPollIntervalMs`：可选的 inventory 轮询间隔，单位毫秒；控制插拔变化多久能反映到 `/inventory`、`/devices` 与 `/dashboard-events`
