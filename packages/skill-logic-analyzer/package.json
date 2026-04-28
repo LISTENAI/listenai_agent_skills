@@ -1,6 +1,11 @@
 {
   "name": "@listenai/eaw-skill-logic-analyzer",
   "version": "0.0.1",
+  "maintainers": [
+    {
+      "name": "lpmadmin"
+    }
+  ],
   "type": "module",
   "exports": {
     ".": {

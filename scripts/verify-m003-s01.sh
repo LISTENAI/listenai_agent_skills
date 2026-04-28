@@ -48,6 +48,11 @@ const manifest = JSON.parse(raw);
 const version = manifest.version;
 const deps = manifest.dependencies ?? {};
 const internalDeps = Object.entries(deps).filter(([name]) => name.startsWith("@listenai/"));
+const maintainers = manifest.maintainers ?? [];
+
+if (!maintainers.some((maintainer) => maintainer?.name === "lpmadmin")) {
+  throw new Error(`${packageName}: packed manifest must include lpmadmin in maintainers`);
+}
 
 for (const [name, range] of internalDeps) {
   if (range !== version) {

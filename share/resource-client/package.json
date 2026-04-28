@@ -1,6 +1,11 @@
 {
   "name": "@listenai/eaw-resource-client",
   "version": "0.0.1",
+  "maintainers": [
+    {
+      "name": "lpmadmin"
+    }
+  ],
   "type": "module",
   "exports": {
     ".": {

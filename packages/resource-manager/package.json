@@ -1,6 +1,11 @@
 {
   "name": "@listenai/eaw-resource-manager",
   "version": "0.0.1",
+  "maintainers": [
+    {
+      "name": "lpmadmin"
+    }
+  ],
   "type": "module",
   "bin": {
     "resource-manager": "./dist/cli.js"
