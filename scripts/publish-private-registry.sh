@@ -25,10 +25,10 @@ Defaults to --dry-run and never writes registry credentials into the repo.
 
 Environment:
   LISTENAI_NPM_REGISTRY_URL   Registry URL. Defaults to https://registry-lpm.listenai.com
-  LPM_ZHUOBIN_TOKEN           Preferred ListenAI private registry password/token for --publish.
-  LPM_NPM_USERNAME            Private registry username. Defaults to zbzhao.
-  LPM_NPM_EMAIL               Private registry email. Defaults to zbzhao@listenai.com.
-  NPM_TOKEN                   Optional npm auth token fallback.
+  LPM_PASSWORD_BASE64         Private registry _password value for --publish.
+  LPM_USERNAME                Private registry username for --publish.
+  LPM_EMAIL                   Private registry email for --publish.
+  LPM_ADMIN_TOKEN             Optional private registry auth token fallback for --publish.
   CONFIRM_PUBLISH             Must be exactly "publish" for --publish.
   LISTENAI_PUBLISH_SKIP_READINESS=1  Skip scripts/verify-m003-s04.sh for focused tests only.
 EOF
@@ -66,8 +66,17 @@ if [[ "$MODE" == "publish" ]]; then
     echo "[publish] Refusing real publish: set CONFIRM_PUBLISH=publish to confirm." >&2
     exit 2
   fi
-  if [[ -z "${LPM_ZHUOBIN_TOKEN:-}" && -z "${NPM_TOKEN:-}" ]]; then
-    echo "[publish] Refusing real publish: LPM_ZHUOBIN_TOKEN or NPM_TOKEN is required." >&2
+
+  password_auth_fields=()
+  [[ -n "${LPM_PASSWORD_BASE64:-}" ]] && password_auth_fields+=("LPM_PASSWORD_BASE64")
+  [[ -n "${LPM_USERNAME:-}" ]] && password_auth_fields+=("LPM_USERNAME")
+  [[ -n "${LPM_EMAIL:-}" ]] && password_auth_fields+=("LPM_EMAIL")
+  if [[ ${#password_auth_fields[@]} -gt 0 && ${#password_auth_fields[@]} -lt 3 ]]; then
+    echo "[publish] Refusing real publish: LPM_PASSWORD_BASE64, LPM_USERNAME, and LPM_EMAIL are required together." >&2
+    exit 2
+  fi
+  if [[ ${#password_auth_fields[@]} -eq 0 && -z "${LPM_ADMIN_TOKEN:-}" ]]; then
+    echo "[publish] Refusing real publish: provide LPM_PASSWORD_BASE64, LPM_USERNAME, and LPM_EMAIL, or LPM_ADMIN_TOKEN." >&2
     exit 2
   fi
 fi
@@ -108,17 +117,14 @@ printf '@listenai:registry=%s\n' "$REGISTRY_URL" > "$NPM_USERCONFIG"
 REGISTRY_AUTH_HOST="${REGISTRY_URL#http://}"
 REGISTRY_AUTH_HOST="${REGISTRY_AUTH_HOST#https://}"
 REGISTRY_AUTH_HOST="${REGISTRY_AUTH_HOST%/}"
-if [[ -n "${LPM_ZHUOBIN_TOKEN:-}" ]]; then
-  printf '//%s/:_password=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_ZHUOBIN_TOKEN" >> "$NPM_USERCONFIG"
-  printf '//%s/:username=%s\n' "$REGISTRY_AUTH_HOST" "${LPM_NPM_USERNAME:-zbzhao}" >> "$NPM_USERCONFIG"
-  printf '//%s/:email=%s\n' "$REGISTRY_AUTH_HOST" "${LPM_NPM_EMAIL:-zbzhao@listenai.com}" >> "$NPM_USERCONFIG"
+if [[ -n "${LPM_PASSWORD_BASE64:-}" ]]; then
+  printf '//%s/:_password=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_PASSWORD_BASE64" >> "$NPM_USERCONFIG"
+  printf '//%s/:username=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_USERNAME" >> "$NPM_USERCONFIG"
+  printf '//%s/:email=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_EMAIL" >> "$NPM_USERCONFIG"
   printf '//%s/:always-auth=true\n' "$REGISTRY_AUTH_HOST" >> "$NPM_USERCONFIG"
-elif [[ -n "${NPM_TOKEN:-}" ]]; then
-  printf '//%s/:_authToken=%s\n' "$REGISTRY_AUTH_HOST" "$NPM_TOKEN" >> "$NPM_USERCONFIG"
+elif [[ -n "${LPM_ADMIN_TOKEN:-}" ]]; then
+  printf '//%s/:_authToken=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_ADMIN_TOKEN" >> "$NPM_USERCONFIG"
   printf '//%s/:always-auth=true\n' "$REGISTRY_AUTH_HOST" >> "$NPM_USERCONFIG"
-fi
-if [[ -n "${NPM_TOKEN:-}" ]]; then
-  printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" >> "$NPM_USERCONFIG"
 fi
 
 if [[ "$MODE" == "publish" ]]; then

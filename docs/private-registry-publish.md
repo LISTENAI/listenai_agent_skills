@@ -35,10 +35,12 @@ The script first runs `scripts/verify-m003-s04.sh`, then packs the four packages
 
 ## Local Real Publish
 
-A real publish is intentionally awkward. It requires a registry credential and a confirmation word. In GitHub Actions, prefer the organization-level `LPM_ZHUOBIN_TOKEN` secret used by other ListenAI packages. Locally, use the same variable when you have access:
+A real publish is intentionally awkward. It requires a confirmation word plus registry credentials. The preferred ListenAI registry auth shape is explicit password auth:
 
 ```bash
-LPM_ZHUOBIN_TOKEN=... \
+LPM_PASSWORD_BASE64=... \
+LPM_USERNAME=... \
+LPM_EMAIL=... \
 CONFIRM_PUBLISH=publish \
 bash scripts/publish-private-registry.sh --publish
 ```
@@ -52,16 +54,16 @@ The script writes private-registry auth in the same shape as the existing Listen
 //registry-lpm.listenai.com/:always-auth
 ```
 
-`LPM_NPM_USERNAME` defaults to `zbzhao`, and `LPM_NPM_EMAIL` defaults to `zbzhao@listenai.com`. `NPM_TOKEN` is still supported as an optional fallback auth token and for npmjs.org auth when provided.
+`LPM_PASSWORD_BASE64`, `LPM_USERNAME`, and `LPM_EMAIL` must be provided together; the script does not hardcode default registry identities. `LPM_ADMIN_TOKEN` is supported as an optional private-registry auth token fallback when password auth is not provided.
 
 Safety gates:
 
 - `--publish` fails unless `CONFIRM_PUBLISH=publish`.
-- `--publish` fails unless `LPM_ZHUOBIN_TOKEN` or `NPM_TOKEN` is set.
+- `--publish` fails unless password auth (`LPM_PASSWORD_BASE64`, `LPM_USERNAME`, and `LPM_EMAIL`) or `LPM_ADMIN_TOKEN` is set.
 - The script checks every `package@version` is absent from the target registry before any real publish attempt.
 - Registry config is written only to a temporary npm userconfig.
 - The M003 consumer publish-readiness verifier runs before any package publish attempt.
-- Packages publish in dependency order: contracts, resource-client, resource-manager, skill-logic-analyzer.
+- Packages publish in dependency order: eaw-contracts, eaw-resource-client, eaw-resource-manager, eaw-skill-logic-analyzer.
 
 Real npm publish is not transactional. If a registry or network failure occurs mid-sequence, inspect the private registry manually before retrying.
 
@@ -78,16 +80,18 @@ Inputs:
 - `dry_run`: boolean, defaults to `true`.
 - `confirm_publish`: string, must be `publish` for a real publish.
 
-Required secret for real publish:
+Required secrets for password auth:
 
 ```text
-LPM_ZHUOBIN_TOKEN
+LPM_PASSWORD_BASE64
+LPM_USERNAME
+LPM_EMAIL
 ```
 
-Optional fallback/additional secret:
+Optional fallback secret:
 
 ```text
-NPM_TOKEN
+LPM_ADMIN_TOKEN
 ```
 
 Recommended workflow usage:
@@ -96,7 +100,7 @@ Recommended workflow usage:
 2. Confirm the run completes verification and dry-run publish for all four packages.
 3. Dispatch again with `dry_run=false` and `confirm_publish=publish` only when you intend to write to the private registry.
 
-The workflow uses `permissions: contents: read` and passes `LPM_ZHUOBIN_TOKEN`, `NPM_TOKEN`, and `CONFIRM_PUBLISH` only as environment variables to `scripts/publish-private-registry.sh`.
+The workflow uses `permissions: contents: read` and passes `LPM_PASSWORD_BASE64`, `LPM_USERNAME`, `LPM_EMAIL`, `LPM_ADMIN_TOKEN`, and `CONFIRM_PUBLISH` only as environment variables to `scripts/publish-private-registry.sh`.
 
 ## Verification
 
