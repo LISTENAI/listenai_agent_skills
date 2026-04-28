@@ -1,0 +1,77 @@
+name: Publish Private Packages
+
+run-name: Publish private packages (${{ inputs.dry_run == true && 'dry-run' || 'publish' }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run npm publish in dry-run mode"
+        required: true
+        type: boolean
+        default: true
+      confirm_publish:
+        description: "Type 'publish' to allow a real publish when dry_run is false"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: listenai-private-npm-publish
+  cancel-in-progress: false
+
+env:
+  LISTENAI_NPM_REGISTRY_URL: https://registry-lpm.listenai.com
+
+jobs:
+  publish:
+    name: Verify and publish packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Verify package publish surfaces
+        run: bash scripts/verify-m003-s01.sh
+
+      - name: Verify registry-first docs
+        run: bash scripts/verify-m003-s02.sh
+
+      - name: Verify daemon lifecycle
+        run: bash scripts/verify-m003-s03.sh
+
+      - name: Verify publish script guardrails
+        run: bash scripts/verify-m004-s01.sh
+
+      - name: Publish packages
+        env:
+          LPM_ZHUOBIN_TOKEN: ${{ secrets.LPM_ZHUOBIN_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CONFIRM_PUBLISH: ${{ inputs.confirm_publish }}
+        run: |
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            bash scripts/publish-private-registry.sh --dry-run
+          else
+            bash scripts/publish-private-registry.sh --publish
+          fi
