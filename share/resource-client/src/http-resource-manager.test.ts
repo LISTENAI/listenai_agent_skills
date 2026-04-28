@@ -853,6 +853,40 @@ describe("HttpResourceManager", () => {
       ],
     };
 
+    const diagnostics = {
+      phase: "list-decoders",
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      backendVersion: "1.2.2",
+      timeoutMs: 15000,
+      nativeCode: "ENOENT",
+      decoderOutput: {
+        kind: "text",
+        byteLength: 0,
+        textLength: 0,
+        preview: "",
+        truncated: false,
+      },
+      diagnosticOutput: {
+        kind: "text",
+        byteLength: 34,
+        textLength: 34,
+        preview: "decoder runtime is unavailable",
+        truncated: false,
+      },
+      details: ["Could not list protocol decoders."],
+      diagnostics: [
+        {
+          code: "backend-missing-runtime",
+          severity: "error",
+          target: "backend",
+          message: "dsview-cli decoder runtime is unavailable.",
+          backendKind: "dsview-cli",
+          backendVersion: "1.2.2",
+        },
+      ],
+    };
+
     it("lists protocol-generic decoder capabilities for a device backend", async () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
         jsonResponse({ ok: true, ...capabilities }),
@@ -866,6 +900,137 @@ describe("HttpResourceManager", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
       });
+    });
+
+    it("accepts an empty decoder capability list as a typed success", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({ ok: true, ...capabilities, decoders: [] }),
+      );
+
+      await expect(mgr.listDecoderCapabilities(request)).resolves.toEqual({
+        ok: true,
+        ...capabilities,
+        decoders: [],
+      });
+    });
+
+    it("round-trips typed decoder capability failures", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: false,
+          reason: "decoder-capabilities-failed",
+          kind: "runtime-unavailable",
+          message: "Decoder runtime is unavailable.",
+          deviceId: request.deviceId,
+          requestedAt: request.requestedAt,
+          decoders: null,
+          diagnostics,
+        }),
+      );
+
+      const result = await mgr.listDecoderCapabilities(request);
+
+      expect(result).toEqual({
+        ok: false,
+        reason: "decoder-capabilities-failed",
+        kind: "runtime-unavailable",
+        message: "Decoder runtime is unavailable.",
+        deviceId: request.deviceId,
+        requestedAt: request.requestedAt,
+        decoders: null,
+        diagnostics,
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.kind).toBe("runtime-unavailable");
+        expect(result.message).toBe("Decoder runtime is unavailable.");
+        expect(result.diagnostics).toMatchObject({
+          phase: "list-decoders",
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+        });
+      }
+    });
+
+    it("keeps unavailable decoder capability responses as typed failures", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: false,
+          reason: "decoder-capabilities-failed",
+          kind: "native-error",
+          message: "No protocol decoders were available.",
+          deviceId: request.deviceId,
+          requestedAt: request.requestedAt,
+          decoders: null,
+          diagnostics: {
+            ...diagnostics,
+            phase: "inspect-decoder",
+            decoderOutput: null,
+            details: ["Decoder 1:uart is unavailable."],
+          },
+        }),
+      );
+
+      const result = await mgr.listDecoderCapabilities(request);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result).toMatchObject({
+          kind: "native-error",
+          message: "No protocol decoders were available.",
+          decoders: null,
+        });
+        expect(result.diagnostics.phase).toBe("inspect-decoder");
+      }
+    });
+
+    it("rejects malformed decoder capability failure phases with decoder paths", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: false,
+          reason: "decoder-capabilities-failed",
+          kind: "runtime-unavailable",
+          message: "Decoder runtime is unavailable.",
+          deviceId: request.deviceId,
+          requestedAt: request.requestedAt,
+          decoders: null,
+          diagnostics: { ...diagnostics, phase: "decode-run" },
+        }),
+      );
+
+      await expect(mgr.listDecoderCapabilities(request)).rejects.toThrow(
+        "Malformed decoder capabilities response at root.diagnostics.phase",
+      );
+    });
+
+    it("rejects malformed decoder capability failure diagnostics with decoder paths", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: false,
+          reason: "decoder-capabilities-failed",
+          kind: "runtime-unavailable",
+          message: "Decoder runtime is unavailable.",
+          deviceId: request.deviceId,
+          requestedAt: request.requestedAt,
+          decoders: null,
+          diagnostics: {
+            ...diagnostics,
+            diagnostics: [
+              {
+                code: "backend-missing-runtime",
+                severity: "error",
+                target: "backend",
+                message: 99,
+                backendKind: "dsview-cli",
+              },
+            ],
+          },
+        }),
+      );
+
+      await expect(mgr.listDecoderCapabilities(request)).rejects.toThrow(
+        "Malformed decoder capabilities response at root.diagnostics.diagnostics[0].message",
+      );
     });
 
     it("rejects malformed decoder capability channel ids with decoder paths", async () => {
@@ -911,6 +1076,64 @@ describe("HttpResourceManager", () => {
       },
     };
 
+    const artifactSummary = {
+      sourceName: "capture.vcd",
+      formatHint: "dsview-vcd",
+      mediaType: "text/x-vcd",
+      capturedAt: "2026-03-30T10:00:22.000Z",
+      byteLength: null,
+      textLength: 512,
+      hasText: true,
+    };
+
+    const decode = {
+      decoderId: "1:uart",
+      annotations: [{ startSample: 10, endSample: 20, text: "boot" }],
+      rows: [{ timestampNs: 1200, text: "boot" }],
+      raw: { report: { rows: [{ text: "boot" }] } },
+    };
+
+    const diagnostics = {
+      phase: "decode-run",
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      backendVersion: "1.2.2",
+      timeoutMs: 25000,
+      nativeCode: "EDECODE",
+      captureOutput: {
+        kind: "text",
+        byteLength: 512,
+        textLength: 512,
+        preview: "$date",
+        truncated: true,
+      },
+      decoderOutput: {
+        kind: "text",
+        byteLength: 0,
+        textLength: 0,
+        preview: "",
+        truncated: false,
+      },
+      diagnosticOutput: {
+        kind: "text",
+        byteLength: 24,
+        textLength: 24,
+        preview: "decoder failed to run",
+        truncated: false,
+      },
+      details: ["Protocol decoder failed after capture."],
+      diagnostics: [
+        {
+          code: "backend-runtime-failed",
+          severity: "error",
+          target: "backend",
+          message: "dsview-cli failed while decoding capture data.",
+          backendKind: "dsview-cli",
+          backendVersion: "1.2.2",
+        },
+      ],
+    };
+
     it("parses generic capture-decode reports without UART-specific result types", async () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
         jsonResponse({
@@ -919,21 +1142,8 @@ describe("HttpResourceManager", () => {
           backendKind: "dsview-cli",
           session: request.session,
           requestedAt: request.requestedAt,
-          artifactSummary: {
-            sourceName: "capture.vcd",
-            formatHint: "dsview-vcd",
-            mediaType: "text/x-vcd",
-            capturedAt: "2026-03-30T10:00:22.000Z",
-            byteLength: null,
-            textLength: 512,
-            hasText: true,
-          },
-          decode: {
-            decoderId: "1:uart",
-            annotations: [{ startSample: 10, endSample: 20, text: "boot" }],
-            rows: [{ timestampNs: 1200, text: "boot" }],
-            raw: { report: { rows: [{ text: "boot" }] } },
-          },
+          artifactSummary,
+          decode,
         }),
       );
 
@@ -945,27 +1155,102 @@ describe("HttpResourceManager", () => {
         backendKind: "dsview-cli",
         session: request.session,
         requestedAt: request.requestedAt,
-        artifactSummary: {
-          sourceName: "capture.vcd",
-          formatHint: "dsview-vcd",
-          mediaType: "text/x-vcd",
-          capturedAt: "2026-03-30T10:00:22.000Z",
-          byteLength: null,
-          textLength: 512,
-          hasText: true,
-        },
-        decode: {
-          decoderId: "1:uart",
-          annotations: [{ startSample: 10, endSample: 20, text: "boot" }],
-          rows: [{ timestampNs: 1200, text: "boot" }],
-          raw: { report: { rows: [{ text: "boot" }] } },
-        },
+        artifactSummary,
+        decode,
       });
       expect(fetch).toHaveBeenCalledWith(BASE + "/capture/decode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
       });
+    });
+
+    it("round-trips typed capture-decode failures", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: false,
+          reason: "capture-decode-failed",
+          kind: "decode-failed",
+          message: "Protocol decode failed.",
+          session: request.session,
+          requestedAt: request.requestedAt,
+          artifactSummary,
+          decode: null,
+          diagnostics,
+        }),
+      );
+
+      const result = await mgr.captureDecode(request);
+
+      expect(result).toEqual({
+        ok: false,
+        reason: "capture-decode-failed",
+        kind: "decode-failed",
+        message: "Protocol decode failed.",
+        session: request.session,
+        requestedAt: request.requestedAt,
+        artifactSummary,
+        decode: null,
+        diagnostics,
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.kind).toBe("decode-failed");
+        expect(result.message).toBe("Protocol decode failed.");
+        expect(result.session.sessionId).toBe("session-1");
+        expect(result.requestedAt).toBe(request.requestedAt);
+        expect(result.diagnostics).toMatchObject({
+          phase: "decode-run",
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+        });
+      }
+    });
+
+    it("rejects malformed capture-decode failure phases with capture-decode paths", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: false,
+          reason: "capture-decode-failed",
+          kind: "decode-failed",
+          message: "Protocol decode failed.",
+          session: request.session,
+          requestedAt: request.requestedAt,
+          artifactSummary,
+          decode: null,
+          diagnostics: { ...diagnostics, phase: "inspect-decoder" },
+        }),
+      );
+
+      await expect(mgr.captureDecode(request)).rejects.toThrow(
+        "Malformed capture-decode response at root.diagnostics.phase",
+      );
+    });
+
+    it("rejects malformed capture-decode failure streams with capture-decode paths", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: false,
+          reason: "capture-decode-failed",
+          kind: "decode-failed",
+          message: "Protocol decode failed.",
+          session: request.session,
+          requestedAt: request.requestedAt,
+          artifactSummary,
+          decode: null,
+          diagnostics: {
+            ...diagnostics,
+            captureOutput: {
+              ...diagnostics.captureOutput,
+              kind: "binary",
+            },
+          },
+        }),
+      );
+
+      await expect(mgr.captureDecode(request)).rejects.toThrow(
+        "Malformed capture-decode response at root.diagnostics.captureOutput.kind",
+      );
     });
 
     it("rejects malformed capture-decode report rows with capture-decode paths", async () => {

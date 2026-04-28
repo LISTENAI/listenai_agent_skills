@@ -1242,6 +1242,64 @@ const readDecoderCapabilitiesEnum = <T extends string>(
   throw new Error(`Malformed decoder capabilities response at ${path}`);
 };
 
+const parseDecoderCapabilitiesInventoryDiagnostic = (
+  value: unknown,
+  path: string,
+): InventoryDiagnostic => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed decoder capabilities response at ${path}`);
+  }
+
+  const diagnostic: InventoryDiagnostic = {
+    code: readDecoderCapabilitiesEnum(
+      value.code,
+      `${path}.code`,
+      INVENTORY_DIAGNOSTIC_CODES,
+    ) as InventoryDiagnostic["code"],
+    severity: readDecoderCapabilitiesEnum(
+      value.severity,
+      `${path}.severity`,
+      INVENTORY_DIAGNOSTIC_SEVERITIES,
+    ) as InventoryDiagnostic["severity"],
+    target: readDecoderCapabilitiesEnum(
+      value.target,
+      `${path}.target`,
+      INVENTORY_DIAGNOSTIC_TARGETS,
+    ) as InventoryDiagnostic["target"],
+    message: readDecoderCapabilitiesString(value.message, `${path}.message`) as string,
+  };
+
+  if (value.deviceId !== undefined) {
+    diagnostic.deviceId = readDecoderCapabilitiesString(
+      value.deviceId,
+      `${path}.deviceId`,
+    ) as string;
+  }
+  if (value.platform !== undefined) {
+    diagnostic.platform = readDecoderCapabilitiesEnum(
+      value.platform,
+      `${path}.platform`,
+      INVENTORY_PLATFORMS,
+    ) as InventoryDiagnostic["platform"];
+  }
+  if (value.backendKind !== undefined) {
+    diagnostic.backendKind = readDecoderCapabilitiesEnum(
+      value.backendKind,
+      `${path}.backendKind`,
+      INVENTORY_BACKEND_KINDS,
+    ) as InventoryDiagnostic["backendKind"];
+  }
+  if (value.backendVersion !== undefined) {
+    diagnostic.backendVersion = readDecoderCapabilitiesString(
+      value.backendVersion,
+      `${path}.backendVersion`,
+      true,
+    );
+  }
+
+  return diagnostic;
+};
+
 const readCaptureDecodeString = (
   value: unknown,
   path: string,
@@ -1298,6 +1356,64 @@ const readCaptureDecodeEnum = <T extends string>(
   }
 
   throw new Error(`Malformed capture-decode response at ${path}`);
+};
+
+const parseCaptureDecodeInventoryDiagnostic = (
+  value: unknown,
+  path: string,
+): InventoryDiagnostic => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed capture-decode response at ${path}`);
+  }
+
+  const diagnostic: InventoryDiagnostic = {
+    code: readCaptureDecodeEnum(
+      value.code,
+      `${path}.code`,
+      INVENTORY_DIAGNOSTIC_CODES,
+    ) as InventoryDiagnostic["code"],
+    severity: readCaptureDecodeEnum(
+      value.severity,
+      `${path}.severity`,
+      INVENTORY_DIAGNOSTIC_SEVERITIES,
+    ) as InventoryDiagnostic["severity"],
+    target: readCaptureDecodeEnum(
+      value.target,
+      `${path}.target`,
+      INVENTORY_DIAGNOSTIC_TARGETS,
+    ) as InventoryDiagnostic["target"],
+    message: readCaptureDecodeString(value.message, `${path}.message`) as string,
+  };
+
+  if (value.deviceId !== undefined) {
+    diagnostic.deviceId = readCaptureDecodeString(
+      value.deviceId,
+      `${path}.deviceId`,
+    ) as string;
+  }
+  if (value.platform !== undefined) {
+    diagnostic.platform = readCaptureDecodeEnum(
+      value.platform,
+      `${path}.platform`,
+      INVENTORY_PLATFORMS,
+    ) as InventoryDiagnostic["platform"];
+  }
+  if (value.backendKind !== undefined) {
+    diagnostic.backendKind = readCaptureDecodeEnum(
+      value.backendKind,
+      `${path}.backendKind`,
+      INVENTORY_BACKEND_KINDS,
+    ) as InventoryDiagnostic["backendKind"];
+  }
+  if (value.backendVersion !== undefined) {
+    diagnostic.backendVersion = readCaptureDecodeString(
+      value.backendVersion,
+      `${path}.backendVersion`,
+      true,
+    );
+  }
+
+  return diagnostic;
 };
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
@@ -1513,7 +1629,10 @@ const parseDecoderCapabilityFailureDiagnosticsValue = (
         })(),
     diagnostics: Array.isArray(value.diagnostics)
       ? value.diagnostics.map((entry, index) =>
-          parseInventoryDiagnostic(entry, `${path}.diagnostics[${index}]`),
+          parseDecoderCapabilitiesInventoryDiagnostic(
+            entry,
+            `${path}.diagnostics[${index}]`,
+          ),
         )
       : (() => {
           throw new Error(`Malformed decoder capabilities response at ${path}.diagnostics`);
@@ -1694,7 +1813,10 @@ const parseCaptureDecodeFailureDiagnosticsValue = (
     captureOutput:
       value.captureOutput === null
         ? null
-        : parseLiveCaptureStreamSummary(value.captureOutput, `${path}.captureOutput`),
+        : parseCaptureDecodeStreamSummary(
+            value.captureOutput,
+            `${path}.captureOutput`,
+          ),
     decoderOutput:
       value.decoderOutput === null
         ? null
@@ -1715,7 +1837,10 @@ const parseCaptureDecodeFailureDiagnosticsValue = (
         })(),
     diagnostics: Array.isArray(value.diagnostics)
       ? value.diagnostics.map((entry, index) =>
-          parseInventoryDiagnostic(entry, `${path}.diagnostics[${index}]`),
+          parseCaptureDecodeInventoryDiagnostic(
+            entry,
+            `${path}.diagnostics[${index}]`,
+          ),
         )
       : (() => {
           throw new Error(`Malformed capture-decode response at ${path}.diagnostics`);
