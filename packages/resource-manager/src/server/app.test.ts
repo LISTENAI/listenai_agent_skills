@@ -2,6 +2,7 @@ import type {
   CaptureDecodeFailure,
   CaptureDecodeRequest,
   CaptureDecodeResult,
+  DecoderCapabilitiesFailure,
   DecoderCapabilitiesRequest,
   DecoderCapabilitiesResult,
   DeviceOptionsFailure,
@@ -1705,6 +1706,144 @@ describe("Hono app routes", () => {
         }
       ]
     });
+  });
+
+  it("POST /decoders/capabilities round-trips typed decoder capability diagnostics", async () => {
+    const request: DecoderCapabilitiesRequest = {
+      deviceId: "logic-missing",
+      requestedAt: refreshedAt,
+      timeoutMs: 15000
+    };
+    const failure: DecoderCapabilitiesFailure = {
+      ok: false,
+      reason: "decoder-capabilities-failed",
+      kind: "device-not-found",
+      message: "Device logic-missing was not found while listing decoder capabilities.",
+      deviceId: request.deviceId,
+      requestedAt: request.requestedAt,
+      decoders: null,
+      diagnostics: {
+        phase: "validate-device",
+        providerKind: null,
+        backendKind: null,
+        backendVersion: null,
+        timeoutMs: 15000,
+        nativeCode: null,
+        decoderOutput: null,
+        diagnosticOutput: null,
+        details: ["Capability lookup requires a connected device record."],
+        diagnostics: []
+      }
+    };
+    const manager: SnapshotResourceManager = {
+      listDevices: async () => [],
+      refreshInventory: async () => [],
+      getInventorySnapshot: async () => dslogicSnapshot,
+      refreshInventorySnapshot: async () => dslogicSnapshot,
+      allocateDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      releaseDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      inspectDeviceOptions: async (optionsRequest) => ({
+        ok: false,
+        reason: "device-options-failed",
+        kind: "unsupported-runtime",
+        message: "unused",
+        session: optionsRequest.session,
+        requestedAt: optionsRequest.requestedAt,
+        capabilities: null,
+        diagnostics: {
+          phase: "validate-session",
+          providerKind: optionsRequest.session.device.providerKind ?? null,
+          backendKind: optionsRequest.session.device.backendKind ?? null,
+          backendVersion: null,
+          timeoutMs: optionsRequest.timeoutMs ?? null,
+          nativeCode: null,
+          optionsOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      }),
+      listDecoderCapabilities: async (): Promise<DecoderCapabilitiesResult> => failure,
+      captureDecode: async (decodeRequest): Promise<CaptureDecodeResult> => ({
+        ok: false,
+        reason: "capture-decode-failed",
+        kind: "decode-failed",
+        message: "unused",
+        session: decodeRequest.session,
+        requestedAt: decodeRequest.requestedAt,
+        artifactSummary: null,
+        decode: null,
+        diagnostics: {
+          phase: "decode-validation",
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          backendVersion: null,
+          timeoutMs: decodeRequest.timeoutMs ?? null,
+          nativeCode: null,
+          captureOutput: null,
+          decoderOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      }),
+      liveCapture: async () => ({
+        ok: false,
+        reason: "capture-failed",
+        kind: "unsupported-runtime",
+        message: "unused",
+        session: {
+          sessionId: "unused",
+          deviceId: "logic-ready",
+          ownerSkillId: "unused",
+          startedAt: refreshedAt,
+          device: dslogicSnapshot.devices[0],
+          sampling: {
+            sampleRateHz: 1_000_000,
+            captureDurationMs: 250,
+            channels: [{ channelId: "D0", label: "RX" }]
+          }
+        },
+        requestedAt: refreshedAt,
+        artifactSummary: null,
+        diagnostics: {
+          phase: "validate-session",
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          backendVersion: null,
+          timeoutMs: null,
+          nativeCode: null,
+          captureOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      })
+    };
+    const app = createApp(manager, new LeaseManager());
+
+    const res = await app.request("/decoders/capabilities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(failure);
   });
 
   it("POST /capture/decode returns a generic decode report from the resource manager", async () => {
