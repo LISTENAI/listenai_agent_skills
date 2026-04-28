@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import type { SnapshotResourceManager } from "@listenai/contracts";
+import type { SnapshotResourceManager } from "@listenai/eaw-contracts";
 import type { AddressInfo } from "node:net";
 import type { LeaseManager } from "./lease-manager.js";
 import { createApp, createDashboardLiveUpdates } from "./app.js";

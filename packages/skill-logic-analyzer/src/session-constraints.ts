@@ -4,7 +4,7 @@ import type {
   DeviceRecord,
   InventoryDiagnostic,
   InventorySnapshot
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 
 import type {
   LogicAnalyzerConstraintIssue,

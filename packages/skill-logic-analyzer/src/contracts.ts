@@ -10,7 +10,7 @@ import type {
   LiveCaptureFailure,
   LiveCaptureTuning,
   ReleaseFailure
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import type {
   CaptureArtifactSummary,
   IncompatibleSessionCaptureFailure,

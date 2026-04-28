@@ -4,5 +4,5 @@ This directory collects user-facing guides for consuming the ListenAI agent skil
 
 ## Guides
 
-- [Use `@listenai/skill-logic-analyzer` as an agent skill](./logic-analyzer-agent-skill.md) ([简体中文](./logic-analyzer-agent-skill.zh-CN.md))
+- [Use `@listenai/eaw-skill-logic-analyzer` as an agent skill](./logic-analyzer-agent-skill.md) ([简体中文](./logic-analyzer-agent-skill.zh-CN.md))
 - [Private registry publish automation](./private-registry-publish.md)

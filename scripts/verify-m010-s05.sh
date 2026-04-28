@@ -105,9 +105,9 @@ require_pattern "diagnostic guard" "device-unsupported-variant" "${SUPPORT_FILES
 require_pattern "diagnostic guard" "device-runtime-malformed-response" "${SUPPORT_FILES[@]}"
 
 run_layer "compose S04 proof" 240 pnpm run verify:s04
-run_layer "resource-manager native runtime proof" 120 pnpm --filter @listenai/resource-manager exec vitest run ./src/dslogic/native-runtime.test.ts
-run_layer "resource-manager provider readiness proof" 120 pnpm --filter @listenai/resource-manager exec vitest run ./src/dslogic/dslogic-device-provider.test.ts
-run_layer "packaged generic skill proof" 120 pnpm --filter @listenai/skill-logic-analyzer exec vitest run src/generic-skill.test.ts
-run_layer "packaged logic-analyzer skill proof" 120 pnpm --filter @listenai/skill-logic-analyzer exec vitest run src/logic-analyzer-skill.test.ts
+run_layer "resource-manager native runtime proof" 120 pnpm --filter @listenai/eaw-resource-manager exec vitest run ./src/dslogic/native-runtime.test.ts
+run_layer "resource-manager provider readiness proof" 120 pnpm --filter @listenai/eaw-resource-manager exec vitest run ./src/dslogic/dslogic-device-provider.test.ts
+run_layer "packaged generic skill proof" 120 pnpm --filter @listenai/eaw-skill-logic-analyzer exec vitest run src/generic-skill.test.ts
+run_layer "packaged logic-analyzer skill proof" 120 pnpm --filter @listenai/eaw-skill-logic-analyzer exec vitest run src/logic-analyzer-skill.test.ts
 
 echo "[verify-m010-s05] support story acceptance seam passed"

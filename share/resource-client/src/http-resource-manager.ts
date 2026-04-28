@@ -42,7 +42,7 @@ import {
   type ReleaseRequest,
   type ReleaseResult,
   type SnapshotResourceManager,
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;

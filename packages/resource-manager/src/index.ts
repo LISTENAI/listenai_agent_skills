@@ -1,4 +1,4 @@
-export * from "@listenai/contracts"
+export * from "@listenai/eaw-contracts"
 export * from "./device-provider.js"
 export * from "./resource-manager.js"
 export * from "./dslogic/backend-probe.js"

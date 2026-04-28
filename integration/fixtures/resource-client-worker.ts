@@ -1,4 +1,4 @@
-import { HttpResourceManager } from "@listenai/resource-client";
+import { HttpResourceManager } from "@listenai/eaw-resource-client";
 
 interface WorkerResult {
   ok: boolean;

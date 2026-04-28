@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { parseArgs } from "node:util"
-import type { InventorySnapshot } from "@listenai/contracts"
+import type { InventorySnapshot } from "@listenai/eaw-contracts"
 import { InMemoryResourceManager } from "./resource-manager.js"
 import { createServer } from "./server/server.js"
 import { LeaseManager } from "./server/lease-manager.js"

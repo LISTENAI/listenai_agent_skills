@@ -13,7 +13,7 @@ import type {
   ReleaseRequest,
   ReleaseResult,
   SnapshotResourceManager
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import {
   createDslogicDeviceOptionsProvider,
   createDslogicLiveCaptureProvider,
@@ -32,7 +32,7 @@ import {
   normalizeDeviceProviders
 } from "./device-provider.js";
 
-export type { ResourceManager, SnapshotResourceManager } from "@listenai/contracts";
+export type { ResourceManager, SnapshotResourceManager } from "@listenai/eaw-contracts";
 
 export interface ResourceManagerOptions {
   now?: () => string;

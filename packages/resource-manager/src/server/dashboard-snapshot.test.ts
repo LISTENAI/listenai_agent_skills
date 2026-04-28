@@ -2,7 +2,7 @@ import type {
   DashboardSnapshot,
   InventorySnapshot,
   LeaseInfo
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import { describe, expect, it } from "vitest";
 import { createDashboardSnapshot } from "./dashboard-snapshot.js";
 

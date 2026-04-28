@@ -1,10 +1,10 @@
 ---
 name: logic-analyzer
-description: Canonical host guidance for running the packaged logic-analyzer skill from @listenai/skill-logic-analyzer with the package-root request/result contract.
+description: Canonical host guidance for running the packaged logic-analyzer skill from @listenai/eaw-skill-logic-analyzer with the package-root request/result contract.
 ---
 
 <objective>
-Help the host invoke the canonical logic-analyzer package through <code>@listenai/skill-logic-analyzer</code>, keep the packaged request shape intact, and preserve phase-aware diagnostics plus explicit cleanup behavior.
+Help the host invoke the canonical logic-analyzer package through <code>@listenai/eaw-skill-logic-analyzer</code>, keep the packaged request shape intact, and preserve phase-aware diagnostics plus explicit cleanup behavior.
 </objective>
 
 <canonical_source>
@@ -18,7 +18,7 @@ Use this skill when the task is to analyze either a caller-supplied offline logi
 </when_to_use>
 
 <required_surface>
-Import from <code>@listenai/skill-logic-analyzer</code> only.
+Import from <code>@listenai/eaw-skill-logic-analyzer</code> only.
 
 Preferred exports:
 - <code>createGenericLogicAnalyzerSkill</code> when the host will reuse a configured skill instance.
@@ -101,8 +101,8 @@ Keep the shared contract vocabulary intact:
 
 <host_instructions>
 - Read this package's <code>README.md</code> for host-neutral examples, Codex and Claude install destinations, adaptation notes, and the current verification commands.
-- For Codex installation, prefer registry one-shot execution: <code>npm exec --package @listenai/skill-logic-analyzer -- listenai-logic-analyzer-install-codex &lt;codex-skills-directory&gt;</code>, <code>pnpm dlx --package @listenai/skill-logic-analyzer listenai-logic-analyzer-install-codex &lt;codex-skills-directory&gt;</code>, or <code>yarn dlx @listenai/skill-logic-analyzer listenai-logic-analyzer-install-codex &lt;codex-skills-directory&gt;</code>. Target either <code>~/.codex/skills</code> or <code>.codex/skills</code>; the installed skill lives at <code>logic-analyzer/</code> under that directory and contains this package-owned <code>SKILL.md</code> plus <code>README.md</code>.
-- For Claude Code installation, prefer registry one-shot execution: <code>npm exec --package @listenai/skill-logic-analyzer -- listenai-logic-analyzer-install-claude &lt;claude-skills-directory&gt;</code>, <code>pnpm dlx --package @listenai/skill-logic-analyzer listenai-logic-analyzer-install-claude &lt;claude-skills-directory&gt;</code>, or <code>yarn dlx @listenai/skill-logic-analyzer listenai-logic-analyzer-install-claude &lt;claude-skills-directory&gt;</code>. Target either <code>~/.claude/skills</code> or <code>.claude/skills</code>; the installed skill lives at <code>logic-analyzer/</code> under that directory and contains this package-owned <code>SKILL.md</code> plus <code>README.md</code>.
+- For Codex installation, prefer registry one-shot execution: <code>npm exec --package @listenai/eaw-skill-logic-analyzer -- listenai-logic-analyzer-install-codex &lt;codex-skills-directory&gt;</code>, <code>pnpm dlx --package @listenai/eaw-skill-logic-analyzer listenai-logic-analyzer-install-codex &lt;codex-skills-directory&gt;</code>, or <code>yarn dlx @listenai/eaw-skill-logic-analyzer listenai-logic-analyzer-install-codex &lt;codex-skills-directory&gt;</code>. Target either <code>~/.codex/skills</code> or <code>.codex/skills</code>; the installed skill lives at <code>logic-analyzer/</code> under that directory and contains this package-owned <code>SKILL.md</code> plus <code>README.md</code>.
+- For Claude Code installation, prefer registry one-shot execution: <code>npm exec --package @listenai/eaw-skill-logic-analyzer -- listenai-logic-analyzer-install-claude &lt;claude-skills-directory&gt;</code>, <code>pnpm dlx --package @listenai/eaw-skill-logic-analyzer listenai-logic-analyzer-install-claude &lt;claude-skills-directory&gt;</code>, or <code>yarn dlx @listenai/eaw-skill-logic-analyzer listenai-logic-analyzer-install-claude &lt;claude-skills-directory&gt;</code>. Target either <code>~/.claude/skills</code> or <code>.claude/skills</code>; the installed skill lives at <code>logic-analyzer/</code> under that directory and contains this package-owned <code>SKILL.md</code> plus <code>README.md</code>.
 - Keep repo-local callers on the package-owned import path so docs and runtime entrypoints stay canonical.
 - Keep optional protocol decode offline and additive for this contract: hosts pass inspected decoder metadata and an injected command runner, then continue returning waveform analysis alongside any decode report.
 - Keep resource-manager as the live capture authority; do not route live allocation, probe readiness, or live capture through the protocol decode seam.
@@ -113,5 +113,5 @@ Keep the shared contract vocabulary intact:
 </host_instructions>
 
 <success_criteria>
-The host uses the package-root exports from <code>@listenai/skill-logic-analyzer</code>, passes the nested packaged request shape unchanged, returns either the completed waveform result with any additive decode report or the phase-aware failure object with cleanup visibility intact, and explicitly ends successful sessions when the device should be released.
+The host uses the package-root exports from <code>@listenai/eaw-skill-logic-analyzer</code>, passes the nested packaged request shape unchanged, returns either the completed waveform result with any additive decode report or the phase-aware failure object with cleanup visibility intact, and explicitly ends successful sessions when the device should be released.
 </success_criteria>

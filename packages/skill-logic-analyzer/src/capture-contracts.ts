@@ -1,6 +1,6 @@
 import type {
   LiveCaptureArtifactSampling,
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import type { LogicAnalyzerSessionRecord } from "./contracts.js";
 
 export const CAPTURE_LOAD_FAILURE_REASONS = [

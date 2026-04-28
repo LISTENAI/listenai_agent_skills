@@ -2,10 +2,10 @@
 
 This repository publishes four private `@listenai/*` packages to the ListenAI npm registry:
 
-1. `@listenai/contracts`
-2. `@listenai/resource-client`
-3. `@listenai/resource-manager`
-4. `@listenai/skill-logic-analyzer`
+1. `@listenai/eaw-contracts`
+2. `@listenai/eaw-resource-client`
+3. `@listenai/eaw-resource-manager`
+4. `@listenai/eaw-skill-logic-analyzer`
 
 Registry URL:
 

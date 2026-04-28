@@ -1,4 +1,4 @@
-import type { LeaseInfo } from "@listenai/contracts";
+import type { LeaseInfo } from "@listenai/eaw-contracts";
 
 export interface LeaseManagerOptions {
   timeoutMs?: number;

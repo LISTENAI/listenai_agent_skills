@@ -5,7 +5,7 @@ import {
   type InventoryDiagnostic,
   type InventoryDiagnosticCode,
   type InventoryPlatform
-} from "@listenai/contracts"
+} from "@listenai/eaw-contracts"
 import {
   createDslogicNativeRuntime,
   defaultExecuteCommand,

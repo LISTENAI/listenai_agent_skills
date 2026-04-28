@@ -10,7 +10,7 @@ import type {
   LiveCaptureFailure,
   LiveCaptureRequest,
   LiveCaptureResult
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import type {
   DeviceOptionsProvider,
   DeviceProvider,

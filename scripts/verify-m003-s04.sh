@@ -13,10 +13,10 @@ cd "$ROOT_DIR"
 mkdir -p "$PACK_DIR" "$CONSUMER_DIR" "$DAEMON_STATE_DIR"
 
 echo "[m003-s04] Building publishable packages"
-pnpm --filter @listenai/contracts build
-pnpm --filter @listenai/resource-client build
-pnpm --filter @listenai/resource-manager build
-pnpm --filter @listenai/skill-logic-analyzer build
+pnpm --filter @listenai/eaw-contracts build
+pnpm --filter @listenai/eaw-resource-client build
+pnpm --filter @listenai/eaw-resource-manager build
+pnpm --filter @listenai/eaw-skill-logic-analyzer build
 
 require_tar_entry() {
   local tarball="$1"
@@ -94,13 +94,13 @@ pack_and_verify() {
   printf '%s\n' "$tarball"
 }
 
-CONTRACTS_TGZ="$(pack_and_verify "@listenai/contracts")"
-RESOURCE_CLIENT_TGZ="$(pack_and_verify "@listenai/resource-client")"
-RESOURCE_MANAGER_TGZ="$(pack_and_verify "@listenai/resource-manager" \
+CONTRACTS_TGZ="$(pack_and_verify "@listenai/eaw-contracts")"
+RESOURCE_CLIENT_TGZ="$(pack_and_verify "@listenai/eaw-resource-client")"
+RESOURCE_MANAGER_TGZ="$(pack_and_verify "@listenai/eaw-resource-manager" \
   "package/dist/cli.js" \
   "package/README.md" \
   "package/README.zh-CN.md")"
-LOGIC_ANALYZER_TGZ="$(pack_and_verify "@listenai/skill-logic-analyzer" \
+LOGIC_ANALYZER_TGZ="$(pack_and_verify "@listenai/eaw-skill-logic-analyzer" \
   "package/dist/claude-skill-install-cli.js" \
   "package/dist/codex-skill-install-cli.js" \
   "package/SKILL.md" \
@@ -115,17 +115,17 @@ const manifest = {
   private: true,
   type: "module",
   dependencies: {
-    "@listenai/contracts": contractsTgz,
-    "@listenai/resource-client": resourceClientTgz,
-    "@listenai/resource-manager": resourceManagerTgz,
-    "@listenai/skill-logic-analyzer": logicAnalyzerTgz
+    "@listenai/eaw-contracts": contractsTgz,
+    "@listenai/eaw-resource-client": resourceClientTgz,
+    "@listenai/eaw-resource-manager": resourceManagerTgz,
+    "@listenai/eaw-skill-logic-analyzer": logicAnalyzerTgz
   },
   pnpm: {
     overrides: {
-      "@listenai/contracts": contractsTgz,
-      "@listenai/resource-client": resourceClientTgz,
-      "@listenai/resource-manager": resourceManagerTgz,
-      "@listenai/skill-logic-analyzer": logicAnalyzerTgz
+      "@listenai/eaw-contracts": contractsTgz,
+      "@listenai/eaw-resource-client": resourceClientTgz,
+      "@listenai/eaw-resource-manager": resourceManagerTgz,
+      "@listenai/eaw-skill-logic-analyzer": logicAnalyzerTgz
     }
   }
 };
@@ -141,10 +141,10 @@ node --input-type=module <<'NODE'
 import { existsSync, readFileSync } from "node:fs";
 
 const packages = [
-  "@listenai/contracts",
-  "@listenai/resource-client",
-  "@listenai/resource-manager",
-  "@listenai/skill-logic-analyzer"
+  "@listenai/eaw-contracts",
+  "@listenai/eaw-resource-client",
+  "@listenai/eaw-resource-manager",
+  "@listenai/eaw-skill-logic-analyzer"
 ];
 
 for (const packageName of packages) {
@@ -171,10 +171,10 @@ NODE
 echo "[m003-s04] Verifying public exports resolve from installed packages"
 node --input-type=module <<'NODE'
 import { existsSync, readFileSync } from "node:fs";
-import { DSLOGIC_BACKEND_KIND } from "@listenai/contracts";
-import { HttpResourceManager } from "@listenai/resource-client";
-import { createResourceManager } from "@listenai/resource-manager";
-import { createGenericLogicAnalyzerSkill, installCodexSkill, installClaudeSkill } from "@listenai/skill-logic-analyzer";
+import { DSLOGIC_BACKEND_KIND } from "@listenai/eaw-contracts";
+import { HttpResourceManager } from "@listenai/eaw-resource-client";
+import { createResourceManager } from "@listenai/eaw-resource-manager";
+import { createGenericLogicAnalyzerSkill, installCodexSkill, installClaudeSkill } from "@listenai/eaw-skill-logic-analyzer";
 
 if (DSLOGIC_BACKEND_KIND !== "dsview-cli") throw new Error("contracts export smoke failed");
 if (typeof HttpResourceManager !== "function") throw new Error("resource-client export smoke failed");
@@ -184,8 +184,8 @@ if (typeof installCodexSkill !== "function" || typeof installClaudeSkill !== "fu
   throw new Error("logic-analyzer installer exports failed");
 }
 
-const skillText = readFileSync("node_modules/@listenai/skill-logic-analyzer/SKILL.md", "utf8");
-const readmeText = readFileSync("node_modules/@listenai/skill-logic-analyzer/README.md", "utf8");
+const skillText = readFileSync("node_modules/@listenai/eaw-skill-logic-analyzer/SKILL.md", "utf8");
+const readmeText = readFileSync("node_modules/@listenai/eaw-skill-logic-analyzer/README.md", "utf8");
 if (!skillText.includes("listenai.skillAssets")) throw new Error("installed SKILL.md missing asset metadata guidance");
 if (!readmeText.includes("registry-lpm.listenai.com")) throw new Error("installed README missing private registry guidance");
 if (!existsSync("node_modules/.bin/listenai-logic-analyzer-install-codex")) throw new Error("missing codex installer bin");

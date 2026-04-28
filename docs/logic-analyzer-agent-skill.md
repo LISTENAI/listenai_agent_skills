@@ -1,4 +1,4 @@
-# Use `@listenai/skill-logic-analyzer` as an agent skill
+# Use `@listenai/eaw-skill-logic-analyzer` as an agent skill
 
 This guide is for host maintainers or agent users who want an AI coding tool to load the packaged logic-analyzer guidance as an agent skill.
 
@@ -22,7 +22,7 @@ yarn config set npmScopes.listenai.npmRegistryServer https://registry-lpm.listen
 
 ## What the agent skill is
 
-`@listenai/skill-logic-analyzer` publishes two surfaces:
+`@listenai/eaw-skill-logic-analyzer` publishes two surfaces:
 
 - an agent skill descriptor named `logic-analyzer`, used by AI coding tools to load instructions and examples;
 - TypeScript runtime exports, used by host code to run offline artifact analysis, optional protocol decode, or live DSLogic capture through resource-manager.
@@ -51,26 +51,26 @@ Use one-shot package execution when you want to install or refresh the skill wit
 Codex-style skill directory:
 
 ```bash
-npm exec --package @listenai/skill-logic-analyzer -- \
+npm exec --package @listenai/eaw-skill-logic-analyzer -- \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 
-pnpm dlx --package @listenai/skill-logic-analyzer \
+pnpm dlx --package @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 
-yarn dlx @listenai/skill-logic-analyzer \
+yarn dlx @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 ```
 
 Claude Code skill directory:
 
 ```bash
-npm exec --package @listenai/skill-logic-analyzer -- \
+npm exec --package @listenai/eaw-skill-logic-analyzer -- \
   listenai-logic-analyzer-install-claude ~/.claude/skills
 
-pnpm dlx --package @listenai/skill-logic-analyzer \
+pnpm dlx --package @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-claude ~/.claude/skills
 
-yarn dlx @listenai/skill-logic-analyzer \
+yarn dlx @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-claude ~/.claude/skills
 ```
 
@@ -89,14 +89,14 @@ The copied files should match the package-owned `SKILL.md` and `README.md` conte
 For frequent personal use, install the package globally:
 
 ```bash
-npm install -g @listenai/skill-logic-analyzer
+npm install -g @listenai/eaw-skill-logic-analyzer
 listenai-logic-analyzer-install-codex ~/.codex/skills
 ```
 
 For team projects that want a lockfile-pinned skill version, add the package as a dev dependency and wrap the installer in a project script:
 
 ```bash
-npm install --save-dev @listenai/skill-logic-analyzer
+npm install --save-dev @listenai/eaw-skill-logic-analyzer
 npm exec listenai-logic-analyzer-install-codex ./.codex/skills
 ```
 
@@ -135,8 +135,8 @@ import {
   createLogicAnalyzerSkill,
   inspectDsviewDecoder,
   runGenericLogicAnalyzer
-} from "@listenai/skill-logic-analyzer";
-import { HttpResourceManager } from "@listenai/resource-client";
+} from "@listenai/eaw-skill-logic-analyzer";
+import { HttpResourceManager } from "@listenai/eaw-resource-client";
 
 const resourceManager = new HttpResourceManager("http://127.0.0.1:7600");
 const result = await runGenericLogicAnalyzer(resourceManager, request, options);
@@ -156,7 +156,7 @@ if (result.ok) {
 
 The important behavior is:
 
-- import from `@listenai/skill-logic-analyzer`, not internal modules;
+- import from `@listenai/eaw-skill-logic-analyzer`, not internal modules;
 - pass one nested request object instead of flattening fields into a host-specific schema;
 - branch on `result.ok` and `result.phase`;
 - preserve nested diagnostics instead of replacing them with prose-only summaries;
@@ -197,16 +197,16 @@ Decode failures are expected to be structured:
 For live DSLogic capture, start resource-manager first. Foreground startup is currently supported:
 
 ```bash
-npm exec --package @listenai/resource-manager -- \
+npm exec --package @listenai/eaw-resource-manager -- \
   resource-manager start --host 127.0.0.1 --port 7600
 ```
 
 M003 adds managed background mode:
 
 ```bash
-npm exec --package @listenai/resource-manager -- \
+npm exec --package @listenai/eaw-resource-manager -- \
   resource-manager start --daemon --host 127.0.0.1 --port 7600
-npm exec --package @listenai/resource-manager -- resource-manager status --json
+npm exec --package @listenai/eaw-resource-manager -- resource-manager status --json
 ```
 
 Check runtime state before asking the agent to capture:
@@ -225,8 +225,8 @@ Use source workspace commands only when developing this repository:
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm --filter @listenai/skill-logic-analyzer build
-pnpm --filter @listenai/skill-logic-analyzer test
+pnpm --filter @listenai/eaw-skill-logic-analyzer build
+pnpm --filter @listenai/eaw-skill-logic-analyzer test
 ```
 
 Do not make source commands the default user path in host-facing docs.
@@ -237,9 +237,9 @@ After changing the skill package or this guide, run the focused checks:
 
 ```bash
 bash scripts/verify-m003-s01.sh
-pnpm --filter @listenai/skill-logic-analyzer typecheck
-pnpm --filter @listenai/skill-logic-analyzer build
-pnpm --filter @listenai/skill-logic-analyzer exec vitest run src/generic-skill.test.ts src/decoder-discovery.test.ts src/decoder-runner.test.ts
+pnpm --filter @listenai/eaw-skill-logic-analyzer typecheck
+pnpm --filter @listenai/eaw-skill-logic-analyzer build
+pnpm --filter @listenai/eaw-skill-logic-analyzer exec vitest run src/generic-skill.test.ts src/decoder-discovery.test.ts src/decoder-runner.test.ts
 ```
 
 For the broader DSLogic support story, run:
@@ -254,7 +254,7 @@ pnpm run verify:m010:s05
 | --- | --- | --- |
 | The package cannot be found | The `@listenai` registry scope is not configured or authenticated | Configure `@listenai` to use `https://registry-lpm.listenai.com` and check auth in your environment |
 | The agent says `logic-analyzer` is unavailable | The skill assets were not installed into the directory scanned by that agent | Run the relevant installer or mirror the package-owned assets into the scanned skill directory |
-| The agent deep-imports package internals | The host guidance is stale or the skill was not loaded | Reload the `logic-analyzer` skill and keep imports on `@listenai/skill-logic-analyzer` |
+| The agent deep-imports package internals | The host guidance is stale or the skill was not loaded | Reload the `logic-analyzer` skill and keep imports on `@listenai/eaw-skill-logic-analyzer` |
 | Live capture fails at allocation or readiness | resource-manager owns hardware state and found the device unavailable, unsupported, or degraded | Inspect `/inventory` and preserve the returned diagnostics |
 | Decode fails before command execution | The optional decode request does not match inspected decoder metadata | Check `decode-validation` issues and fix decoder id, channel mappings, options, artifact payload, or runner setup |
 | Decode fails after command execution | `dsview-cli decode run` failed or returned malformed output | Check `decode-run` command diagnostics, stdout/stderr previews, exit code, signal, native code, and cleanup result |
@@ -266,6 +266,6 @@ Before treating the skill as installed, confirm:
 - `logic-analyzer/SKILL.md` and `logic-analyzer/README.md` exist in the agent's skill directory;
 - the files came from the package-owned assets for the version you intend to use;
 - the agent can load the `logic-analyzer` skill by name;
-- host code imports from `@listenai/skill-logic-analyzer` only;
+- host code imports from `@listenai/eaw-skill-logic-analyzer` only;
 - live workflows use resource-manager for allocation and capture;
 - successful live sessions are explicitly ended when the device should be released.

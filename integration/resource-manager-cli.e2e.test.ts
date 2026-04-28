@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import type { DashboardSnapshot, DeviceRecord, InventorySnapshot } from "@listenai/contracts";
+import type { DashboardSnapshot, DeviceRecord, InventorySnapshot } from "@listenai/eaw-contracts";
 
 const WORKTREE_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const TSX_LOADER_PATH = fileURLToPath(new URL("../node_modules/tsx/dist/loader.mjs", import.meta.url));

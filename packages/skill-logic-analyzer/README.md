@@ -1,6 +1,6 @@
-# @listenai/skill-logic-analyzer
+# @listenai/eaw-skill-logic-analyzer
 
-This package is the canonical home of the logic-analyzer host assets and runtime surface. Hosts should consume the package-root exports from `@listenai/skill-logic-analyzer` and resolve the shipped docs through this package's metadata contract instead of treating the monorepo root as the source of truth.
+This package is the canonical home of the logic-analyzer host assets and runtime surface. Hosts should consume the package-root exports from `@listenai/eaw-skill-logic-analyzer` and resolve the shipped docs through this package's metadata contract instead of treating the monorepo root as the source of truth.
 
 If you are browsing the repository, start with this package's `README.md` and `SKILL.md`. New host integrations should document and import the package-owned surface directly.
 
@@ -28,13 +28,13 @@ Configure the `@listenai` scope in npm, pnpm, yarn, or CI before installing. Do 
 The package ships a Codex-oriented installer CLI through the published bin. The recommended user path is one-shot execution from the registry:
 
 ```bash
-npm exec --package @listenai/skill-logic-analyzer -- \
+npm exec --package @listenai/eaw-skill-logic-analyzer -- \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 
-pnpm dlx --package @listenai/skill-logic-analyzer \
+pnpm dlx --package @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 
-yarn dlx @listenai/skill-logic-analyzer \
+yarn dlx @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 ```
 
@@ -66,13 +66,13 @@ The installed files always come from this package's own `SKILL.md` and `README.m
 Claude Code uses the package-owned installer CLI and the same package asset contract. The recommended user path is one-shot execution from the registry:
 
 ```bash
-npm exec --package @listenai/skill-logic-analyzer -- \
+npm exec --package @listenai/eaw-skill-logic-analyzer -- \
   listenai-logic-analyzer-install-claude ~/.claude/skills
 
-pnpm dlx --package @listenai/skill-logic-analyzer \
+pnpm dlx --package @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-claude ~/.claude/skills
 
-yarn dlx @listenai/skill-logic-analyzer \
+yarn dlx @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-claude ~/.claude/skills
 ```
 
@@ -101,7 +101,7 @@ import {
   type DsviewDecoderRunResult,
   type GenericLogicAnalyzerRequest,
   type GenericLogicAnalyzerResult
-} from "@listenai/skill-logic-analyzer";
+} from "@listenai/eaw-skill-logic-analyzer";
 ```
 
 Do not add a repo-root re-export or deep-import internal modules; use the package root as the main host-facing import path.
@@ -132,7 +132,7 @@ import {
   type DsviewDecoderDetails,
   type GenericLogicAnalyzerRequest,
   type GenericLogicAnalyzerResult
-} from "@listenai/skill-logic-analyzer";
+} from "@listenai/eaw-skill-logic-analyzer";
 
 declare const inspectedI2cDecoder: DsviewDecoderDetails;
 declare const dsviewDecodeCommandRunner: DsviewDecodeCommandRunner;
@@ -265,7 +265,7 @@ This matters most for live runs: the packaged one-shot entrypoint leaves the lea
 import {
   createLogicAnalyzerSkill,
   runGenericLogicAnalyzer
-} from "@listenai/skill-logic-analyzer";
+} from "@listenai/eaw-skill-logic-analyzer";
 
 const result = await runGenericLogicAnalyzer(resourceManager, request);
 
@@ -291,7 +291,7 @@ The packaged live DSLogic path is live-proven in M010 only on the macOS host pat
 | Linux | `dsview-cli` readiness may still surface truthful diagnostics, but the packaged M010 operator path is not yet live-proven there | backend can remain `missing`, `degraded`, or `unsupported`; devices stay non-allocatable until the host path is proven | `readiness-modeled` | Treat `backend-missing-runtime`, `backend-runtime-timeout`, `backend-runtime-malformed-response`, `backend-unsupported-os`, `device-unsupported-variant`, and `device-runtime-malformed-response` as the current operator truth instead of assuming capture readiness. |
 | Windows | `dsview-cli` readiness may still surface truthful diagnostics, but the packaged M010 operator path is not yet live-proven there | backend can remain `missing`, `degraded`, or `unsupported`; devices stay non-allocatable until the host path is proven | `readiness-modeled` | Treat `backend-missing-runtime`, `backend-runtime-timeout`, `backend-runtime-malformed-response`, `backend-unsupported-os`, `device-unsupported-variant`, and `device-runtime-malformed-response` as the current operator truth instead of assuming capture readiness. |
 
-Keep the typed vocabulary from `@listenai/contracts` intact: device readiness is `ready`, `degraded`, or `unsupported`; backend readiness is `ready`, `degraded`, `missing`, or `unsupported`. Hosts should preserve those values in logs, browser surfaces, and operator docs instead of rewriting them into softer install-success language.
+Keep the typed vocabulary from `@listenai/eaw-contracts` intact: device readiness is `ready`, `degraded`, or `unsupported`; backend readiness is `ready`, `degraded`, `missing`, or `unsupported`. Hosts should preserve those values in logs, browser surfaces, and operator docs instead of rewriting them into softer install-success language.
 
 ## Verification
 
@@ -305,7 +305,7 @@ pnpm run verify:m010:s05
 That acceptance seam is the intended operator-facing check for the packaged macOS `dsview-cli` live proof plus the DSLogic support-matrix assertions. The package-specific focused checks that back the current S05 contract are:
 
 ```bash
-pnpm --filter @listenai/skill-logic-analyzer exec vitest run src/generic-skill.test.ts
-pnpm --filter @listenai/resource-manager exec vitest run src/dslogic/dslogic-device-provider.test.ts
+pnpm --filter @listenai/eaw-skill-logic-analyzer exec vitest run src/generic-skill.test.ts
+pnpm --filter @listenai/eaw-resource-manager exec vitest run src/dslogic/dslogic-device-provider.test.ts
 rg -n "live-proven|readiness-modeled|dsview-cli|DSLogic Plus|macOS|Linux|Windows|verify:m010:s05" packages/skill-logic-analyzer/README.md packages/skill-logic-analyzer/SKILL.md
 ```

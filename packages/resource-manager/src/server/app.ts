@@ -9,7 +9,7 @@ import type {
   LiveCaptureResult,
   ReleaseRequest,
   SnapshotResourceManager
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import { createDashboardSnapshot } from "./dashboard-snapshot.js";
 import { renderDashboardPage, renderDashboardScript } from "./dashboard-page.js";
 import type { LeaseManager } from "./lease-manager.js";

@@ -1,8 +1,8 @@
 // @ts-ignore - integration test imports package source files directly and uses a minimal browser harness in Node.
 import { describe, expect, it } from "vitest";
 import { runInNewContext } from "node:vm";
-import { createResourceManager, createServer, FakeDeviceProvider, LeaseManager } from "@listenai/resource-manager";
-import type { DashboardSnapshot, InventorySnapshot } from "@listenai/contracts";
+import { createResourceManager, createServer, FakeDeviceProvider, LeaseManager } from "@listenai/eaw-resource-manager";
+import type { DashboardSnapshot, InventorySnapshot } from "@listenai/eaw-contracts";
 import { renderDashboardScript } from "../packages/resource-manager/src/server/dashboard-page.js";
 
 const REFRESHED_AT = "2026-03-31T04:00:00.000Z";

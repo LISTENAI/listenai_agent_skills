@@ -8,10 +8,10 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 cd "$ROOT_DIR"
 
 echo "[m003-s01] Building publishable packages"
-pnpm --filter @listenai/contracts build
-pnpm --filter @listenai/resource-client build
-pnpm --filter @listenai/resource-manager build
-pnpm --filter @listenai/skill-logic-analyzer build
+pnpm --filter @listenai/eaw-contracts build
+pnpm --filter @listenai/eaw-resource-client build
+pnpm --filter @listenai/eaw-resource-manager build
+pnpm --filter @listenai/eaw-skill-logic-analyzer build
 
 require_tar_entry() {
   local tarball="$1"
@@ -90,13 +90,13 @@ pack_and_verify() {
   echo "[m003-s01] Verified $package_name -> $tarball"
 }
 
-pack_and_verify "@listenai/contracts" "share/contracts"
-pack_and_verify "@listenai/resource-client" "share/resource-client"
-pack_and_verify "@listenai/resource-manager" "packages/resource-manager" \
+pack_and_verify "@listenai/eaw-contracts" "share/contracts"
+pack_and_verify "@listenai/eaw-resource-client" "share/resource-client"
+pack_and_verify "@listenai/eaw-resource-manager" "packages/resource-manager" \
   "package/dist/cli.js" \
   "package/README.md" \
   "package/README.zh-CN.md"
-pack_and_verify "@listenai/skill-logic-analyzer" "packages/skill-logic-analyzer" \
+pack_and_verify "@listenai/eaw-skill-logic-analyzer" "packages/skill-logic-analyzer" \
   "package/dist/claude-skill-install-cli.js" \
   "package/dist/codex-skill-install-cli.js" \
   "package/SKILL.md" \

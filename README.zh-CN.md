@@ -1,19 +1,19 @@
-# ListenAI Agent Skills
+# ListenAI Embedded Agent Workbench
 
 <h4 align="right"><a href="README.md">English</a> | <strong>简体中文</strong></h4>
 
-ListenAI Agent Skills 发布一组可复用的 agent-skill 与 hardware-resource packages，用于 logic-analyzer 工作流。普通使用者应优先从 ListenAI 私有 npm registry 消费这些 packages；这个仓库是贡献者 workspace。
+ListenAI Embedded Agent Workbench (EAW) 发布一组可复用的 agent-skill 与 hardware-resource packages，用于嵌入式开发和调试工作流。普通使用者应优先从 ListenAI 私有 npm registry 消费这些 packages；这个仓库是贡献者 workspace。
 
 ## Packages
 
 面向使用者的 package surface 包括：
 
-- `@listenai/contracts` - 共享 request/result、inventory、live-capture 与 device-option contracts。
-- `@listenai/resource-client` - 通过 HTTP 调用已运行 resource-manager 服务的 `HttpResourceManager`。
-- `@listenai/resource-manager` - 本地 HTTP 服务、dashboard、DSLogic runtime boundary、inventory、lease 与 live-capture API。
-- `@listenai/skill-logic-analyzer` - 打包后的 logic-analyzer agent skill assets 与 TypeScript runtime entrypoints。
+- `@listenai/eaw-contracts` - 共享 request/result、inventory、live-capture 与 device-option contracts。
+- `@listenai/eaw-resource-client` - 通过 HTTP 调用已运行 resource-manager 服务的 `HttpResourceManager`。
+- `@listenai/eaw-resource-manager` - 本地 HTTP 服务、dashboard、DSLogic runtime boundary、inventory、lease 与 live-capture API。
+- `@listenai/eaw-skill-logic-analyzer` - 打包后的 logic-analyzer agent skill assets 与 TypeScript runtime entrypoints。
 
-根 package `listenai-agent-skills` 保持 private，只用于在 monorepo 中一起开发这些 packages。
+根 package `listenai-embedded-agent-workbench` 保持 private，只用于在 monorepo 中一起开发这些 EAW packages。
 
 ## Registry 配置
 
@@ -40,42 +40,42 @@ yarn config set npmScopes.listenai.npmRegistryServer https://registry-lpm.listen
 不添加永久依赖的情况下安装 `logic-analyzer` agent skill：
 
 ```bash
-npm exec --package @listenai/skill-logic-analyzer -- \
+npm exec --package @listenai/eaw-skill-logic-analyzer -- \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 
-pnpm dlx --package @listenai/skill-logic-analyzer \
+pnpm dlx --package @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 
-yarn dlx @listenai/skill-logic-analyzer \
+yarn dlx @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 ```
 
 如果目标是 Claude Code skill 目录，使用 Claude installer binary：
 
 ```bash
-npm exec --package @listenai/skill-logic-analyzer -- \
+npm exec --package @listenai/eaw-skill-logic-analyzer -- \
   listenai-logic-analyzer-install-claude ~/.claude/skills
 ```
 
-如果团队希望用 lockfile 固定 skill 版本，可以把 `@listenai/skill-logic-analyzer` 加为项目 dev dependency，并在项目脚本里包装 installer。
+如果团队希望用 lockfile 固定 skill 版本，可以把 `@listenai/eaw-skill-logic-analyzer` 加为项目 dev dependency，并在项目脚本里包装 installer。
 
 ## 快速开始：运行 Resource Manager
 
-Live DSLogic capture 使用 `@listenai/resource-manager` 作为硬件权威边界。配置私有 registry 后，从 registry 运行 package binary：
+Live DSLogic capture 使用 `@listenai/eaw-resource-manager` 作为硬件权威边界。配置私有 registry 后，从 registry 运行 package binary：
 
 ```bash
-npm exec --package @listenai/resource-manager -- \
+npm exec --package @listenai/eaw-resource-manager -- \
   resource-manager start --host 127.0.0.1 --port 7600
 ```
 
 M003 会新增受管理的后台模式：
 
 ```bash
-npm exec --package @listenai/resource-manager -- \
+npm exec --package @listenai/eaw-resource-manager -- \
   resource-manager start --daemon --host 127.0.0.1 --port 7600
 
-npm exec --package @listenai/resource-manager -- resource-manager status --json
-npm exec --package @listenai/resource-manager -- resource-manager stop
+npm exec --package @listenai/eaw-resource-manager -- resource-manager status --json
+npm exec --package @listenai/eaw-resource-manager -- resource-manager stop
 ```
 
 在 daemon mode 发布前，前台启动仍是受支持的运行路径。
@@ -95,8 +95,8 @@ curl http://127.0.0.1:7600/dashboard-snapshot
 只使用 package-root imports。不要 deep-import package internals。
 
 ```ts
-import { HttpResourceManager } from "@listenai/resource-client";
-import { runGenericLogicAnalyzer } from "@listenai/skill-logic-analyzer";
+import { HttpResourceManager } from "@listenai/eaw-resource-client";
+import { runGenericLogicAnalyzer } from "@listenai/eaw-skill-logic-analyzer";
 
 const resourceManager = new HttpResourceManager("http://127.0.0.1:7600");
 const result = await runGenericLogicAnalyzer(resourceManager, request);
@@ -106,7 +106,7 @@ if (!result.ok) {
 }
 ```
 
-`@listenai/skill-logic-analyzer` 支持两种 request mode：
+`@listenai/eaw-skill-logic-analyzer` 支持两种 request mode：
 
 - artifact mode 分析调用方提供的 capture artifact，并可附加离线 protocol decode；
 - live mode 通过 resource-manager 分配设备并执行 capture，然后返回标准化 waveform analysis。
@@ -117,7 +117,7 @@ if (!result.ok) {
 
 面向使用者的指南位于 `docs/`：
 
-- `docs/logic-analyzer-agent-skill.md` - 介绍如何将 `@listenai/skill-logic-analyzer` 作为 Codex、Claude Code 或 GSD/pi 风格 skill 目录中的 agent skill 使用。
+- `docs/logic-analyzer-agent-skill.md` - 介绍如何将 `@listenai/eaw-skill-logic-analyzer` 作为 Codex、Claude Code 或 GSD/pi 风格 skill 目录中的 agent skill 使用。
 - `docs/logic-analyzer-agent-skill.zh-CN.md` - 简体中文版本。
 
 package-owned docs 仍然是 package 本地行为和 installer assets 的权威来源：
@@ -139,15 +139,15 @@ pnpm test
 贡献时从源码运行 resource-manager：
 
 ```bash
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
 ```
 
 从源码构建和测试 logic-analyzer package：
 
 ```bash
-pnpm --filter @listenai/skill-logic-analyzer typecheck
-pnpm --filter @listenai/skill-logic-analyzer build
-pnpm --filter @listenai/skill-logic-analyzer test
+pnpm --filter @listenai/eaw-skill-logic-analyzer typecheck
+pnpm --filter @listenai/eaw-skill-logic-analyzer build
+pnpm --filter @listenai/eaw-skill-logic-analyzer test
 ```
 
 ## 维护者验证

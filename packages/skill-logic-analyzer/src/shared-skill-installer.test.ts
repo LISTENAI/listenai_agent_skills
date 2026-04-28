@@ -46,7 +46,7 @@ const writePackageJson = (
     resolve(fakePackageRoot, "package.json"),
     JSON.stringify(
       {
-        name: "@listenai/skill-logic-analyzer",
+        name: "@listenai/eaw-skill-logic-analyzer",
         type: "module",
         listenai: {
           skillAssets

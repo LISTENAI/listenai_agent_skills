@@ -1,19 +1,19 @@
-# ListenAI Agent Skills
+# ListenAI Embedded Agent Workbench
 
 <h4 align="right"><strong>English</strong> | <a href="README.zh-CN.md">简体中文</a></h4>
 
-ListenAI Agent Skills publishes reusable agent-skill and hardware-resource packages for logic-analyzer workflows. Users should normally consume the packages from the ListenAI private npm registry; this repository is the contributor workspace.
+ListenAI Embedded Agent Workbench (EAW) publishes reusable agent-skill and hardware-resource packages for embedded development and debugging workflows. Users should normally consume the packages from the ListenAI private npm registry; this repository is the contributor workspace.
 
 ## Packages
 
 The user-facing package surfaces are:
 
-- `@listenai/contracts` - shared request/result, inventory, live-capture, and device-option contracts.
-- `@listenai/resource-client` - `HttpResourceManager` for talking to a running resource-manager service over HTTP.
-- `@listenai/resource-manager` - the local HTTP service, dashboard, DSLogic runtime boundary, inventory, leases, and live-capture API.
-- `@listenai/skill-logic-analyzer` - the packaged logic-analyzer agent skill assets and TypeScript runtime entrypoints.
+- `@listenai/eaw-contracts` - shared request/result, inventory, live-capture, and device-option contracts.
+- `@listenai/eaw-resource-client` - `HttpResourceManager` for talking to a running resource-manager service over HTTP.
+- `@listenai/eaw-resource-manager` - the local HTTP service, dashboard, DSLogic runtime boundary, inventory, leases, and live-capture API.
+- `@listenai/eaw-skill-logic-analyzer` - the packaged logic-analyzer agent skill assets and TypeScript runtime entrypoints.
 
-The root `listenai-agent-skills` package is private and exists only to develop these packages together.
+The root `listenai-embedded-agent-workbench` package is private and exists only to develop these EAW packages together.
 
 ## Registry Setup
 
@@ -40,42 +40,42 @@ Your organization or CI should provide authentication through environment-specif
 Install the `logic-analyzer` agent skill without adding a permanent dependency:
 
 ```bash
-npm exec --package @listenai/skill-logic-analyzer -- \
+npm exec --package @listenai/eaw-skill-logic-analyzer -- \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 
-pnpm dlx --package @listenai/skill-logic-analyzer \
+pnpm dlx --package @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 
-yarn dlx @listenai/skill-logic-analyzer \
+yarn dlx @listenai/eaw-skill-logic-analyzer \
   listenai-logic-analyzer-install-codex ~/.codex/skills
 ```
 
 For Claude Code skill directories, use the Claude installer binary instead:
 
 ```bash
-npm exec --package @listenai/skill-logic-analyzer -- \
+npm exec --package @listenai/eaw-skill-logic-analyzer -- \
   listenai-logic-analyzer-install-claude ~/.claude/skills
 ```
 
-For teams that want lockfile-pinned skill installation, add `@listenai/skill-logic-analyzer` as a project dev dependency and wrap the installer in a project script.
+For teams that want lockfile-pinned skill installation, add `@listenai/eaw-skill-logic-analyzer` as a project dev dependency and wrap the installer in a project script.
 
 ## Quick Start: Run Resource Manager
 
-Live DSLogic capture uses `@listenai/resource-manager` as the hardware authority. After configuring the private registry, run the package binary from the registry:
+Live DSLogic capture uses `@listenai/eaw-resource-manager` as the hardware authority. After configuring the private registry, run the package binary from the registry:
 
 ```bash
-npm exec --package @listenai/resource-manager -- \
+npm exec --package @listenai/eaw-resource-manager -- \
   resource-manager start --host 127.0.0.1 --port 7600
 ```
 
 M003 will add managed background mode:
 
 ```bash
-npm exec --package @listenai/resource-manager -- \
+npm exec --package @listenai/eaw-resource-manager -- \
   resource-manager start --daemon --host 127.0.0.1 --port 7600
 
-npm exec --package @listenai/resource-manager -- resource-manager status --json
-npm exec --package @listenai/resource-manager -- resource-manager stop
+npm exec --package @listenai/eaw-resource-manager -- resource-manager status --json
+npm exec --package @listenai/eaw-resource-manager -- resource-manager stop
 ```
 
 Until that daemon mode ships, foreground startup remains the supported runtime path.
@@ -95,8 +95,8 @@ Open `http://127.0.0.1:7600/` when you want the packaged dashboard rather than r
 Use package-root imports only. Do not deep-import package internals.
 
 ```ts
-import { HttpResourceManager } from "@listenai/resource-client";
-import { runGenericLogicAnalyzer } from "@listenai/skill-logic-analyzer";
+import { HttpResourceManager } from "@listenai/eaw-resource-client";
+import { runGenericLogicAnalyzer } from "@listenai/eaw-skill-logic-analyzer";
 
 const resourceManager = new HttpResourceManager("http://127.0.0.1:7600");
 const result = await runGenericLogicAnalyzer(resourceManager, request);
@@ -106,7 +106,7 @@ if (!result.ok) {
 }
 ```
 
-`@listenai/skill-logic-analyzer` supports two request modes:
+`@listenai/eaw-skill-logic-analyzer` supports two request modes:
 
 - artifact mode analyzes caller-supplied capture artifacts and can add optional offline protocol decode;
 - live mode allocates and captures through resource-manager, then returns normalized waveform analysis.
@@ -117,7 +117,7 @@ Successful live sessions are not automatically released. When the host is done c
 
 User-facing guides live in `docs/`:
 
-- `docs/logic-analyzer-agent-skill.md` - install and use `@listenai/skill-logic-analyzer` as an agent skill for Codex, Claude Code, or GSD/pi-style skill directories.
+- `docs/logic-analyzer-agent-skill.md` - install and use `@listenai/eaw-skill-logic-analyzer` as an agent skill for Codex, Claude Code, or GSD/pi-style skill directories.
 - `docs/logic-analyzer-agent-skill.zh-CN.md` - Simplified Chinese version.
 
 Package-owned docs remain authoritative for package-local behavior and installer assets:
@@ -139,15 +139,15 @@ pnpm test
 To run resource-manager from source while contributing:
 
 ```bash
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
 ```
 
 To build and test the logic-analyzer package from source:
 
 ```bash
-pnpm --filter @listenai/skill-logic-analyzer typecheck
-pnpm --filter @listenai/skill-logic-analyzer build
-pnpm --filter @listenai/skill-logic-analyzer test
+pnpm --filter @listenai/eaw-skill-logic-analyzer typecheck
+pnpm --filter @listenai/eaw-skill-logic-analyzer build
+pnpm --filter @listenai/eaw-skill-logic-analyzer test
 ```
 
 ## Verification for Maintainers

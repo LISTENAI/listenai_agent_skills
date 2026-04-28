@@ -37,7 +37,7 @@ import type {
   DsviewDecoderValidationIssue
 } from "./decoder-runner.js";
 import { summarizeCaptureArtifact } from "./capture-contracts.js";
-import type { LiveCaptureTuning, SnapshotResourceManager } from "@listenai/contracts";
+import type { LiveCaptureTuning, SnapshotResourceManager } from "@listenai/eaw-contracts";
 
 export const GENERIC_LOGIC_ANALYZER_MODES = ["artifact", "live"] as const;
 export type GenericLogicAnalyzerMode =
