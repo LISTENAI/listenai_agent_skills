@@ -1,4 +1,13 @@
-import type { DeviceOptionsFailure, InventorySnapshot, SnapshotResourceManager } from "@listenai/eaw-contracts";
+import type {
+  CaptureDecodeFailure,
+  CaptureDecodeRequest,
+  CaptureDecodeResult,
+  DecoderCapabilitiesRequest,
+  DecoderCapabilitiesResult,
+  DeviceOptionsFailure,
+  InventorySnapshot,
+  SnapshotResourceManager
+} from "@listenai/eaw-contracts";
 import { describe, expect, it, vi } from "vitest";
 import { createResourceManager } from "../resource-manager.js";
 import { FakeDeviceProvider } from "../testing/fake-device-provider.js";
@@ -1436,6 +1445,485 @@ describe("Hono app routes", () => {
     const app = createApp(manager, new LeaseManager());
 
     const res = await app.request("/devices/options", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(failure);
+  });
+
+  it("POST /decoders/capabilities returns generic decoder capabilities from the resource manager", async () => {
+    const request: DecoderCapabilitiesRequest = {
+      deviceId: "logic-ready",
+      requestedAt: refreshedAt,
+      timeoutMs: 15000
+    };
+    const manager: SnapshotResourceManager = {
+      listDevices: async () => [],
+      refreshInventory: async () => [],
+      getInventorySnapshot: async () => dslogicSnapshot,
+      refreshInventorySnapshot: async () => dslogicSnapshot,
+      allocateDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      releaseDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      inspectDeviceOptions: async (optionsRequest) => ({
+        ok: false,
+        reason: "device-options-failed",
+        kind: "unsupported-runtime",
+        message: "unused",
+        session: optionsRequest.session,
+        requestedAt: optionsRequest.requestedAt,
+        capabilities: null,
+        diagnostics: {
+          phase: "validate-session",
+          providerKind: optionsRequest.session.device.providerKind ?? null,
+          backendKind: optionsRequest.session.device.backendKind ?? null,
+          backendVersion: null,
+          timeoutMs: optionsRequest.timeoutMs ?? null,
+          nativeCode: null,
+          optionsOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      }),
+      listDecoderCapabilities: async (capabilityRequest): Promise<DecoderCapabilitiesResult> => ({
+        ok: true,
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        backendVersion: "1.2.2",
+        deviceId: capabilityRequest.deviceId,
+        requestedAt: capabilityRequest.requestedAt,
+        decoders: [
+          {
+            decoderId: "1:uart",
+            label: "UART",
+            requiredChannels: [{ id: "rx", label: "RX" }],
+            optionalChannels: [],
+            options: [
+              {
+                id: "baudrate",
+                label: "Baud rate",
+                valueType: "number",
+                required: true,
+                values: [921600]
+              }
+            ]
+          }
+        ]
+      }),
+      captureDecode: async (decodeRequest): Promise<CaptureDecodeResult> => ({
+        ok: false,
+        reason: "capture-decode-failed",
+        kind: "decode-failed",
+        message: "unused",
+        session: decodeRequest.session,
+        requestedAt: decodeRequest.requestedAt,
+        artifactSummary: null,
+        decode: null,
+        diagnostics: {
+          phase: "decode-validation",
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          backendVersion: null,
+          timeoutMs: decodeRequest.timeoutMs ?? null,
+          nativeCode: null,
+          captureOutput: null,
+          decoderOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      }),
+      liveCapture: async () => ({
+        ok: false,
+        reason: "capture-failed",
+        kind: "unsupported-runtime",
+        message: "unused",
+        session: {
+          sessionId: "unused",
+          deviceId: "logic-ready",
+          ownerSkillId: "unused",
+          startedAt: refreshedAt,
+          device: dslogicSnapshot.devices[0],
+          sampling: {
+            sampleRateHz: 1_000_000,
+            captureDurationMs: 250,
+            channels: [{ channelId: "D0", label: "RX" }]
+          }
+        },
+        requestedAt: refreshedAt,
+        artifactSummary: null,
+        diagnostics: {
+          phase: "validate-session",
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          backendVersion: null,
+          timeoutMs: null,
+          nativeCode: null,
+          captureOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      })
+    };
+    const app = createApp(manager, new LeaseManager());
+
+    const res = await app.request("/decoders/capabilities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: true,
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      backendVersion: "1.2.2",
+      deviceId: "logic-ready",
+      requestedAt: refreshedAt,
+      decoders: [
+        {
+          decoderId: "1:uart",
+          label: "UART",
+          requiredChannels: [{ id: "rx", label: "RX" }],
+          optionalChannels: [],
+          options: [
+            {
+              id: "baudrate",
+              label: "Baud rate",
+              valueType: "number",
+              required: true,
+              values: [921600]
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it("POST /capture/decode returns a generic decode report from the resource manager", async () => {
+    const request: CaptureDecodeRequest = {
+      session: {
+        sessionId: "decode-session",
+        deviceId: "logic-ready",
+        ownerSkillId: "skill-decode",
+        startedAt: refreshedAt,
+        device: dslogicSnapshot.devices[0],
+        sampling: {
+          sampleRateHz: 1_000_000,
+          captureDurationMs: 250,
+          channels: [{ channelId: "D0", label: "RX" }]
+        }
+      },
+      requestedAt: refreshedAt,
+      timeoutMs: 15000,
+      decode: {
+        decoderId: "1:uart",
+        channelMappings: { rx: "D0" },
+        decoderOptions: { baudrate: 921600 }
+      }
+    };
+    const manager: SnapshotResourceManager = {
+      listDevices: async () => [],
+      refreshInventory: async () => [],
+      getInventorySnapshot: async () => dslogicSnapshot,
+      refreshInventorySnapshot: async () => dslogicSnapshot,
+      allocateDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      releaseDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      inspectDeviceOptions: async (optionsRequest) => ({
+        ok: false,
+        reason: "device-options-failed",
+        kind: "unsupported-runtime",
+        message: "unused",
+        session: optionsRequest.session,
+        requestedAt: optionsRequest.requestedAt,
+        capabilities: null,
+        diagnostics: {
+          phase: "validate-session",
+          providerKind: optionsRequest.session.device.providerKind ?? null,
+          backendKind: optionsRequest.session.device.backendKind ?? null,
+          backendVersion: null,
+          timeoutMs: optionsRequest.timeoutMs ?? null,
+          nativeCode: null,
+          optionsOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      }),
+      listDecoderCapabilities: async (capabilityRequest): Promise<DecoderCapabilitiesResult> => ({
+        ok: true,
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        backendVersion: "1.2.2",
+        deviceId: capabilityRequest.deviceId,
+        requestedAt: capabilityRequest.requestedAt,
+        decoders: []
+      }),
+      captureDecode: async (decodeRequest): Promise<CaptureDecodeResult> => ({
+        ok: true,
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        session: decodeRequest.session,
+        requestedAt: decodeRequest.requestedAt,
+        artifactSummary: {
+          sourceName: "logic-ready.sr",
+          formatHint: "dsview-session",
+          mediaType: "application/vnd.sigrok.session",
+          capturedAt: refreshedAt,
+          byteLength: 128,
+          textLength: null,
+          hasText: false
+        },
+        auxiliaryArtifactSummaries: [
+          {
+            sourceName: "logic-ready.decode.json",
+            formatHint: "protocol-decode-report",
+            mediaType: "application/json",
+            capturedAt: refreshedAt,
+            byteLength: null,
+            textLength: 96,
+            hasText: true
+          }
+        ],
+        decode: {
+          decoderId: "1:uart",
+          annotations: [{ startSample: 0, endSample: 8, kind: "frame" }],
+          rows: [{ startSample: 0, endSample: 8, data: "A" }],
+          raw: { decoderId: "1:uart", rows: 1 }
+        }
+      }),
+      liveCapture: async () => ({
+        ok: false,
+        reason: "capture-failed",
+        kind: "unsupported-runtime",
+        message: "unused",
+        session: request.session,
+        requestedAt: request.requestedAt,
+        artifactSummary: null,
+        diagnostics: {
+          phase: "validate-session",
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          backendVersion: null,
+          timeoutMs: null,
+          nativeCode: null,
+          captureOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      })
+    };
+    const app = createApp(manager, new LeaseManager());
+
+    const res = await app.request("/capture/decode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: true,
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      session: request.session,
+      requestedAt: request.requestedAt,
+      artifactSummary: {
+        sourceName: "logic-ready.sr",
+        formatHint: "dsview-session",
+        mediaType: "application/vnd.sigrok.session",
+        capturedAt: refreshedAt,
+        byteLength: 128,
+        textLength: null,
+        hasText: false
+      },
+      auxiliaryArtifactSummaries: [
+        {
+          sourceName: "logic-ready.decode.json",
+          formatHint: "protocol-decode-report",
+          mediaType: "application/json",
+          capturedAt: refreshedAt,
+          byteLength: null,
+          textLength: 96,
+          hasText: true
+        }
+      ],
+      decode: {
+        decoderId: "1:uart",
+        annotations: [{ startSample: 0, endSample: 8, kind: "frame" }],
+        rows: [{ startSample: 0, endSample: 8, data: "A" }],
+        raw: { decoderId: "1:uart", rows: 1 }
+      }
+    });
+  });
+
+  it("POST /capture/decode round-trips unavailable decoder diagnostics", async () => {
+    const request: CaptureDecodeRequest = {
+      session: {
+        sessionId: "decode-session",
+        deviceId: "logic-ready",
+        ownerSkillId: "skill-decode",
+        startedAt: refreshedAt,
+        device: dslogicSnapshot.devices[0],
+        sampling: {
+          sampleRateHz: 1_000_000,
+          captureDurationMs: 250,
+          channels: [{ channelId: "D0", label: "RX" }]
+        }
+      },
+      requestedAt: refreshedAt,
+      timeoutMs: 15000,
+      decode: {
+        decoderId: "2:i2c",
+        channelMappings: { rx: "D0" },
+        decoderOptions: { baudrate: 921600 }
+      }
+    };
+    const failure: CaptureDecodeFailure = {
+      ok: false,
+      reason: "capture-decode-failed",
+      kind: "decode-failed",
+      message: "Decoder 2:i2c is not available for device logic-ready.",
+      session: request.session,
+      requestedAt: request.requestedAt,
+      artifactSummary: null,
+      decode: null,
+      diagnostics: {
+        phase: "decode-validation",
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        backendVersion: "1.2.2",
+        timeoutMs: 15000,
+        nativeCode: null,
+        captureOutput: null,
+        decoderOutput: null,
+        diagnosticOutput: null,
+        details: [
+          "Available decoder ids: 1:uart.",
+          "Requested channel mapping rx -> D0 and baudrate 921600."
+        ],
+        diagnostics: []
+      }
+    };
+    const manager: SnapshotResourceManager = {
+      listDevices: async () => [],
+      refreshInventory: async () => [],
+      getInventorySnapshot: async () => dslogicSnapshot,
+      refreshInventorySnapshot: async () => dslogicSnapshot,
+      allocateDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      releaseDevice: async () => ({
+        ok: false,
+        reason: "device-not-found",
+        deviceId: "unused",
+        ownerSkillId: "unused",
+        message: "unused",
+        device: null
+      }),
+      inspectDeviceOptions: async (optionsRequest) => ({
+        ok: false,
+        reason: "device-options-failed",
+        kind: "unsupported-runtime",
+        message: "unused",
+        session: optionsRequest.session,
+        requestedAt: optionsRequest.requestedAt,
+        capabilities: null,
+        diagnostics: {
+          phase: "validate-session",
+          providerKind: optionsRequest.session.device.providerKind ?? null,
+          backendKind: optionsRequest.session.device.backendKind ?? null,
+          backendVersion: null,
+          timeoutMs: optionsRequest.timeoutMs ?? null,
+          nativeCode: null,
+          optionsOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      }),
+      listDecoderCapabilities: async (capabilityRequest): Promise<DecoderCapabilitiesResult> => ({
+        ok: true,
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        backendVersion: "1.2.2",
+        deviceId: capabilityRequest.deviceId,
+        requestedAt: capabilityRequest.requestedAt,
+        decoders: [
+          {
+            decoderId: "1:uart",
+            label: "UART",
+            requiredChannels: [{ id: "rx", label: "RX" }],
+            optionalChannels: [],
+            options: []
+          }
+        ]
+      }),
+      captureDecode: async (): Promise<CaptureDecodeResult> => failure,
+      liveCapture: async () => ({
+        ok: false,
+        reason: "capture-failed",
+        kind: "unsupported-runtime",
+        message: "unused",
+        session: request.session,
+        requestedAt: request.requestedAt,
+        artifactSummary: null,
+        diagnostics: {
+          phase: "validate-session",
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          backendVersion: null,
+          timeoutMs: null,
+          nativeCode: null,
+          captureOutput: null,
+          diagnosticOutput: null,
+          details: [],
+          diagnostics: []
+        }
+      })
+    };
+    const app = createApp(manager, new LeaseManager());
+
+    const res = await app.request("/capture/decode", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request)

@@ -5,9 +5,13 @@ import {
   ALLOCATION_STATES,
   BACKEND_READINESS_STATES,
   CONNECTION_STATES,
+  type CaptureDecodeRequest,
+  type CaptureDecodeResult,
   DEVICE_READINESS_STATES,
   DSLOGIC_BACKEND_KIND,
   DSLOGIC_PROVIDER_KIND,
+  type DecoderCapabilitiesRequest,
+  type DecoderCapabilitiesResult,
   INVENTORY_BACKEND_KINDS,
   INVENTORY_DIAGNOSTIC_CODES,
   INVENTORY_DIAGNOSTIC_SEVERITIES,
@@ -1460,6 +1464,331 @@ describe("in-memory resource manager device-options dispatch", () => {
         ]
       }
     });
+  });
+});
+
+describe("in-memory resource manager decoder orchestration", () => {
+  const refreshedAt = "2026-04-01T10:00:00.000Z";
+  const requestedAt = "2026-04-01T10:00:05.000Z";
+  const allocatedAt = "2026-04-01T10:00:06.000Z";
+
+  interface DecoderCapabilityProvider {
+    supportsDevice(device: DeviceRecord): boolean;
+    listDecoderCapabilities(request: DecoderCapabilitiesRequest): Promise<DecoderCapabilitiesResult>;
+  }
+
+  interface CaptureDecodeProvider {
+    supportsDevice(device: DeviceRecord): boolean;
+    captureDecode(request: CaptureDecodeRequest): Promise<CaptureDecodeResult>;
+  }
+
+  type FutureDecoderDeviceProvider = DeviceProvider & {
+    decoderCapabilities?: DecoderCapabilityProvider;
+    captureDecode?: CaptureDecodeProvider;
+  };
+
+  const createDslogicSnapshot = (): InventorySnapshot => ({
+    refreshedAt,
+    inventoryScope: {
+      providerKinds: ["dslogic"],
+      backendKinds: ["dsview-cli"]
+    },
+    devices: [
+      {
+        deviceId: "logic-1",
+        label: "DSLogic Plus",
+        capabilityType: "logic-analyzer",
+        connectionState: "connected",
+        allocationState: "free",
+        ownerSkillId: null,
+        lastSeenAt: refreshedAt,
+        updatedAt: refreshedAt,
+        readiness: "ready",
+        diagnostics: [],
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        dslogic: {
+          family: "dslogic",
+          model: "dslogic-plus",
+          modelDisplayName: "DSLogic Plus",
+          variant: "classic",
+          usbVendorId: "2a0e",
+          usbProductId: "0001"
+        }
+      }
+    ],
+    backendReadiness: [
+      {
+        platform: "macos",
+        backendKind: "dsview-cli",
+        readiness: "ready",
+        version: "1.2.2",
+        checkedAt: refreshedAt,
+        diagnostics: []
+      }
+    ],
+    diagnostics: []
+  });
+
+  const createCaptureDecodeRequest = (
+    snapshot: InventorySnapshot,
+    decoderId = "1:uart"
+  ): CaptureDecodeRequest => ({
+    session: {
+      sessionId: "session-decode-1",
+      deviceId: "logic-1",
+      ownerSkillId: "skill-alpha",
+      startedAt: refreshedAt,
+      device: {
+        ...snapshot.devices[0]!,
+        allocationState: "free",
+        ownerSkillId: null
+      },
+      sampling: {
+        sampleRateHz: 1_000_000,
+        captureDurationMs: 10,
+        channels: [{ channelId: "D0", label: "RX" }]
+      }
+    },
+    requestedAt,
+    timeoutMs: 15000,
+    decode: {
+      decoderId,
+      channelMappings: { rx: "D0" },
+      decoderOptions: { baudrate: 921600 }
+    }
+  });
+
+  it("delegates decoder capability lookup through a provider-dispatched seam", async () => {
+    const snapshot = createDslogicSnapshot();
+    let supportedDevice = null as DeviceRecord | null;
+    let capturedRequest = null as DecoderCapabilitiesRequest | null;
+    const provider: FutureDecoderDeviceProvider = {
+      async listInventorySnapshot() {
+        return snapshot;
+      },
+      async listConnectedDevices() {
+        return [];
+      },
+      decoderCapabilities: {
+        supportsDevice(device) {
+          supportedDevice = device;
+          return device.providerKind === "dslogic" && device.backendKind === "dsview-cli";
+        },
+        async listDecoderCapabilities(request) {
+          capturedRequest = request;
+          return {
+            ok: true,
+            providerKind: "dslogic",
+            backendKind: "dsview-cli",
+            backendVersion: "1.2.2",
+            deviceId: request.deviceId,
+            requestedAt: request.requestedAt,
+            decoders: [
+              {
+                decoderId: "1:uart",
+                label: "UART",
+                requiredChannels: [{ id: "rx", label: "RX" }],
+                optionalChannels: [],
+                options: [
+                  {
+                    id: "baudrate",
+                    label: "Baud rate",
+                    valueType: "number",
+                    required: true,
+                    values: [921600]
+                  }
+                ]
+              }
+            ]
+          };
+        }
+      }
+    };
+    const manager = createResourceManager(provider, {
+      now: () => refreshedAt
+    });
+
+    await manager.refreshInventory();
+
+    const result = await manager.listDecoderCapabilities({
+      deviceId: "logic-1",
+      requestedAt,
+      timeoutMs: 15000
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      backendVersion: "1.2.2",
+      deviceId: "logic-1",
+      requestedAt,
+      decoders: [
+        {
+          decoderId: "1:uart",
+          label: "UART",
+          requiredChannels: [{ id: "rx", label: "RX" }],
+          optionalChannels: [],
+          options: [
+            {
+              id: "baudrate",
+              label: "Baud rate",
+              valueType: "number",
+              required: true,
+              values: [921600]
+            }
+          ]
+        }
+      ]
+    });
+    expect(supportedDevice).toMatchObject({
+      deviceId: "logic-1",
+      providerKind: "dslogic",
+      backendKind: "dsview-cli"
+    });
+    expect(capturedRequest).toEqual({
+      deviceId: "logic-1",
+      requestedAt,
+      timeoutMs: 15000
+    });
+  });
+
+  it("runs capture and decode through the authoritative allocated session", async () => {
+    const snapshot = createDslogicSnapshot();
+    let capturedRequest = null as CaptureDecodeRequest | null;
+    const provider: FutureDecoderDeviceProvider = {
+      async listInventorySnapshot() {
+        return snapshot;
+      },
+      async listConnectedDevices() {
+        return [];
+      },
+      captureDecode: {
+        supportsDevice(device) {
+          return device.providerKind === "dslogic" && device.backendKind === "dsview-cli";
+        },
+        async captureDecode(request) {
+          capturedRequest = request;
+          return {
+            ok: true,
+            providerKind: "dslogic",
+            backendKind: "dsview-cli",
+            session: request.session,
+            requestedAt: request.requestedAt,
+            artifactSummary: {
+              sourceName: "logic-1.sr",
+              formatHint: "dsview-session",
+              mediaType: "application/vnd.sigrok.session",
+              capturedAt: requestedAt,
+              byteLength: 128,
+              textLength: null,
+              hasText: false
+            },
+            auxiliaryArtifactSummaries: [
+              {
+                sourceName: "logic-1.decode.json",
+                formatHint: "protocol-decode-report",
+                mediaType: "application/json",
+                capturedAt: requestedAt,
+                byteLength: null,
+                textLength: 96,
+                hasText: true
+              }
+            ],
+            decode: {
+              decoderId: "1:uart",
+              annotations: [{ startSample: 0, endSample: 8, kind: "frame" }],
+              rows: [{ startSample: 0, endSample: 8, data: "A" }],
+              raw: { decoderId: "1:uart", rows: 1 }
+            }
+          };
+        }
+      }
+    };
+    const manager = createResourceManager(provider, {
+      now: () => refreshedAt
+    });
+    const request = createCaptureDecodeRequest(snapshot);
+
+    await manager.refreshInventory();
+    await manager.allocateDevice({
+      deviceId: "logic-1",
+      ownerSkillId: "skill-alpha",
+      requestedAt: allocatedAt
+    });
+
+    const result = await manager.captureDecode(request);
+
+    expect(result).toMatchObject({
+      ok: true,
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      decode: {
+        decoderId: "1:uart",
+        rows: [{ startSample: 0, endSample: 8, data: "A" }]
+      }
+    });
+    expect(capturedRequest?.session.device.allocationState).toBe("allocated");
+    expect(capturedRequest?.session.device.ownerSkillId).toBe("skill-alpha");
+    expect(capturedRequest?.session.device.updatedAt).toBe(allocatedAt);
+    expect(capturedRequest?.decode).toEqual({
+      decoderId: "1:uart",
+      channelMappings: { rx: "D0" },
+      decoderOptions: { baudrate: 921600 }
+    });
+  });
+
+  it("returns typed decode-validation diagnostics when the requested decoder is unavailable", async () => {
+    const snapshot = createDslogicSnapshot();
+    let dispatched = false;
+    const provider: FutureDecoderDeviceProvider = {
+      async listInventorySnapshot() {
+        return snapshot;
+      },
+      async listConnectedDevices() {
+        return [];
+      },
+      captureDecode: {
+        supportsDevice() {
+          return true;
+        },
+        async captureDecode() {
+          dispatched = true;
+          throw new Error("unexpected decode dispatch");
+        }
+      }
+    };
+    const manager = createResourceManager(provider, {
+      now: () => refreshedAt
+    });
+    const request = createCaptureDecodeRequest(snapshot, "2:i2c");
+
+    await manager.refreshInventory();
+    await manager.allocateDevice({
+      deviceId: "logic-1",
+      ownerSkillId: "skill-alpha",
+      requestedAt: allocatedAt
+    });
+
+    await expect(manager.captureDecode(request)).resolves.toMatchObject({
+      ok: false,
+      reason: "capture-decode-failed",
+      kind: "decode-failed",
+      message: "Decoder 2:i2c is not available for device logic-1.",
+      artifactSummary: null,
+      decode: null,
+      diagnostics: {
+        phase: "decode-validation",
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        details: [
+          "Available decoder ids: 1:uart.",
+          "Requested channel mapping rx -> D0 and baudrate 921600."
+        ]
+      }
+    });
+    expect(dispatched).toBe(false);
   });
 });
 

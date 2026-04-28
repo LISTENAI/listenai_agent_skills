@@ -820,6 +820,186 @@ describe("HttpResourceManager", () => {
     });
   });
 
+  describe("decoder capabilities", () => {
+    const request = {
+      deviceId: "logic-ready",
+      requestedAt: "2026-03-30T10:00:01.000Z",
+      timeoutMs: 15000,
+    };
+
+    const capabilities = {
+      providerKind: "dslogic",
+      backendKind: "dsview-cli",
+      backendVersion: "1.2.2",
+      requestedAt: request.requestedAt,
+      deviceId: request.deviceId,
+      decoders: [
+        {
+          decoderId: "1:uart",
+          label: "UART",
+          description: "Universal asynchronous receiver/transmitter",
+          requiredChannels: [{ id: "rx", label: "RX" }],
+          optionalChannels: [{ id: "tx", label: "TX" }],
+          options: [
+            {
+              id: "baudrate",
+              label: "Baud rate",
+              valueType: "number",
+              required: true,
+              values: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    it("lists protocol-generic decoder capabilities for a device backend", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({ ok: true, ...capabilities }),
+      );
+
+      const result = await mgr.listDecoderCapabilities(request);
+
+      expect(result).toEqual({ ok: true, ...capabilities });
+      expect(fetch).toHaveBeenCalledWith(BASE + "/decoders/capabilities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+    });
+
+    it("rejects malformed decoder capability channel ids with decoder paths", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: true,
+          ...capabilities,
+          decoders: [
+            {
+              ...capabilities.decoders[0],
+              requiredChannels: [{ id: 42, label: "RX" }],
+            },
+          ],
+        }),
+      );
+
+      await expect(mgr.listDecoderCapabilities(request)).rejects.toThrow(
+        "Malformed decoder capabilities response at root.decoders[0].requiredChannels[0].id",
+      );
+    });
+  });
+
+  describe("captureDecode", () => {
+    const request = {
+      session: {
+        sessionId: "session-1",
+        deviceId: "logic-ready",
+        ownerSkillId: "skill-a",
+        startedAt: "2026-03-30T10:00:00.000Z",
+        device: readyClassicDevice,
+        sampling: {
+          sampleRateHz: 24_000_000,
+          captureDurationMs: 20_000,
+          channels: [{ channelId: "D0", label: "TX" }],
+        },
+      },
+      requestedAt: "2026-03-30T10:00:01.000Z",
+      timeoutMs: 25000,
+      decode: {
+        decoderId: "1:uart",
+        channelMappings: { rx: "D0" },
+        decoderOptions: { baudrate: 921600 },
+      },
+    };
+
+    it("parses generic capture-decode reports without UART-specific result types", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: true,
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          session: request.session,
+          requestedAt: request.requestedAt,
+          artifactSummary: {
+            sourceName: "capture.vcd",
+            formatHint: "dsview-vcd",
+            mediaType: "text/x-vcd",
+            capturedAt: "2026-03-30T10:00:22.000Z",
+            byteLength: null,
+            textLength: 512,
+            hasText: true,
+          },
+          decode: {
+            decoderId: "1:uart",
+            annotations: [{ startSample: 10, endSample: 20, text: "boot" }],
+            rows: [{ timestampNs: 1200, text: "boot" }],
+            raw: { report: { rows: [{ text: "boot" }] } },
+          },
+        }),
+      );
+
+      const result = await mgr.captureDecode(request);
+
+      expect(result).toEqual({
+        ok: true,
+        providerKind: "dslogic",
+        backendKind: "dsview-cli",
+        session: request.session,
+        requestedAt: request.requestedAt,
+        artifactSummary: {
+          sourceName: "capture.vcd",
+          formatHint: "dsview-vcd",
+          mediaType: "text/x-vcd",
+          capturedAt: "2026-03-30T10:00:22.000Z",
+          byteLength: null,
+          textLength: 512,
+          hasText: true,
+        },
+        decode: {
+          decoderId: "1:uart",
+          annotations: [{ startSample: 10, endSample: 20, text: "boot" }],
+          rows: [{ timestampNs: 1200, text: "boot" }],
+          raw: { report: { rows: [{ text: "boot" }] } },
+        },
+      });
+      expect(fetch).toHaveBeenCalledWith(BASE + "/capture/decode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+    });
+
+    it("rejects malformed capture-decode report rows with capture-decode paths", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: true,
+          providerKind: "dslogic",
+          backendKind: "dsview-cli",
+          session: request.session,
+          requestedAt: request.requestedAt,
+          artifactSummary: {
+            sourceName: null,
+            formatHint: null,
+            mediaType: null,
+            capturedAt: null,
+            byteLength: null,
+            textLength: 512,
+            hasText: true,
+          },
+          decode: {
+            decoderId: "1:uart",
+            annotations: [],
+            rows: ["boot"],
+            raw: { report: { rows: ["boot"] } },
+          },
+        }),
+      );
+
+      await expect(mgr.captureDecode(request)).rejects.toThrow(
+        "Malformed capture-decode response at root.decode.rows[0]",
+      );
+    });
+  });
+
   describe("heartbeat", () => {
     beforeEach(() => {
       vi.useFakeTimers();

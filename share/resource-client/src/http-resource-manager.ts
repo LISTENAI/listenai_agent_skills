@@ -1,7 +1,11 @@
 import {
   ALLOCATION_STATES,
   BACKEND_READINESS_STATES,
+  CAPTURE_DECODE_FAILURE_KINDS,
+  CAPTURE_DECODE_FAILURE_PHASES,
   CONNECTION_STATES,
+  DECODER_CAPABILITY_FAILURE_KINDS,
+  DECODER_CAPABILITY_FAILURE_PHASES,
   DEVICE_READINESS_STATES,
   DEVICE_OPTIONS_FAILURE_KINDS,
   DEVICE_OPTIONS_FAILURE_PHASES,
@@ -16,6 +20,19 @@ import {
   type AllocationResult,
   type AllocationSuccessWithLease,
   type BackendReadinessRecord,
+  type CaptureDecodeFailureDiagnostics,
+  type CaptureDecodeFailureKind,
+  type CaptureDecodeReport,
+  type CaptureDecodeRequest,
+  type CaptureDecodeResult,
+  type DecoderCapabilitiesRequest,
+  type DecoderCapabilitiesResult,
+  type DecoderCapability,
+  type DecoderCapabilityFailureDiagnostics,
+  type DecoderCapabilityFailureKind,
+  type DecoderChannelRoleCapability,
+  type DecoderOptionCapability,
+  type DecoderRuntimeStreamSummary,
   type DeviceOptionsCapabilities,
   type DeviceOptionsFailureDiagnostics,
   type DeviceOptionsFailureKind,
@@ -1167,6 +1184,621 @@ const parseDeviceOptionsResult = (value: unknown): DeviceOptionsResult => {
   };
 };
 
+const readDecoderCapabilitiesString = (
+  value: unknown,
+  path: string,
+  allowNull = false,
+): string | null => {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (allowNull && value === null) {
+    return null;
+  }
+
+  throw new Error(`Malformed decoder capabilities response at ${path}`);
+};
+
+const readDecoderCapabilitiesNumber = (
+  value: unknown,
+  path: string,
+  allowNull = false,
+): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (allowNull && value === null) {
+    return null;
+  }
+
+  throw new Error(`Malformed decoder capabilities response at ${path}`);
+};
+
+const readDecoderCapabilitiesBoolean = (value: unknown, path: string): boolean => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  throw new Error(`Malformed decoder capabilities response at ${path}`);
+};
+
+const readDecoderCapabilitiesEnum = <T extends string>(
+  value: unknown,
+  path: string,
+  allowed: readonly T[],
+  allowNull = false,
+): T | null => {
+  const parsed = readDecoderCapabilitiesString(value, path, allowNull);
+  if (parsed === null) {
+    return null;
+  }
+
+  if (allowed.includes(parsed as T)) {
+    return parsed as T;
+  }
+
+  throw new Error(`Malformed decoder capabilities response at ${path}`);
+};
+
+const readCaptureDecodeString = (
+  value: unknown,
+  path: string,
+  allowNull = false,
+): string | null => {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (allowNull && value === null) {
+    return null;
+  }
+
+  throw new Error(`Malformed capture-decode response at ${path}`);
+};
+
+const readCaptureDecodeNumber = (
+  value: unknown,
+  path: string,
+  allowNull = false,
+): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (allowNull && value === null) {
+    return null;
+  }
+
+  throw new Error(`Malformed capture-decode response at ${path}`);
+};
+
+const readCaptureDecodeBoolean = (value: unknown, path: string): boolean => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  throw new Error(`Malformed capture-decode response at ${path}`);
+};
+
+const readCaptureDecodeEnum = <T extends string>(
+  value: unknown,
+  path: string,
+  allowed: readonly T[],
+  allowNull = false,
+): T | null => {
+  const parsed = readCaptureDecodeString(value, path, allowNull);
+  if (parsed === null) {
+    return null;
+  }
+
+  if (allowed.includes(parsed as T)) {
+    return parsed as T;
+  }
+
+  throw new Error(`Malformed capture-decode response at ${path}`);
+};
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const parseDecoderChannelRoleCapability = (
+  value: unknown,
+  path: string,
+): DecoderChannelRoleCapability => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed decoder capabilities response at ${path}`);
+  }
+
+  const channel: DecoderChannelRoleCapability = {
+    id: readDecoderCapabilitiesString(value.id, `${path}.id`) as string,
+  };
+
+  if (value.label !== undefined) {
+    channel.label = readDecoderCapabilitiesString(value.label, `${path}.label`) as string;
+  }
+  if (value.description !== undefined) {
+    channel.description = readDecoderCapabilitiesString(
+      value.description,
+      `${path}.description`,
+    ) as string;
+  }
+
+  return channel;
+};
+
+const parseDecoderChannelRoleCapabilityArray = (
+  value: unknown,
+  path: string,
+): DecoderChannelRoleCapability[] => {
+  if (!Array.isArray(value)) {
+    throw new Error(`Malformed decoder capabilities response at ${path}`);
+  }
+
+  return value.map((entry, index) =>
+    parseDecoderChannelRoleCapability(entry, `${path}[${index}]`),
+  );
+};
+
+const parseDecoderOptionValue = (value: unknown, path: string) => {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Malformed decoder capabilities response at ${path}`);
+};
+
+const parseDecoderOptionCapability = (
+  value: unknown,
+  path: string,
+): DecoderOptionCapability => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed decoder capabilities response at ${path}`);
+  }
+
+  const option: DecoderOptionCapability = {
+    id: readDecoderCapabilitiesString(value.id, `${path}.id`) as string,
+    values: Array.isArray(value.values)
+      ? value.values.map((entry, index) =>
+          parseDecoderOptionValue(entry, `${path}.values[${index}]`),
+        )
+      : (() => {
+          throw new Error(`Malformed decoder capabilities response at ${path}.values`);
+        })(),
+  };
+
+  if (value.label !== undefined) {
+    option.label = readDecoderCapabilitiesString(value.label, `${path}.label`) as string;
+  }
+  if (value.description !== undefined) {
+    option.description = readDecoderCapabilitiesString(
+      value.description,
+      `${path}.description`,
+    ) as string;
+  }
+  if (value.valueType !== undefined) {
+    option.valueType = readDecoderCapabilitiesEnum(
+      value.valueType,
+      `${path}.valueType`,
+      ["string", "number", "boolean"] as const,
+    ) as DecoderOptionCapability["valueType"];
+  }
+  if (value.required !== undefined) {
+    option.required = readDecoderCapabilitiesBoolean(value.required, `${path}.required`);
+  }
+
+  return option;
+};
+
+const parseDecoderOptionCapabilityArray = (
+  value: unknown,
+  path: string,
+): DecoderOptionCapability[] => {
+  if (!Array.isArray(value)) {
+    throw new Error(`Malformed decoder capabilities response at ${path}`);
+  }
+
+  return value.map((entry, index) =>
+    parseDecoderOptionCapability(entry, `${path}[${index}]`),
+  );
+};
+
+const parseDecoderCapability = (value: unknown, path: string): DecoderCapability => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed decoder capabilities response at ${path}`);
+  }
+
+  const decoder: DecoderCapability = {
+    decoderId: readDecoderCapabilitiesString(value.decoderId, `${path}.decoderId`) as string,
+    requiredChannels: parseDecoderChannelRoleCapabilityArray(
+      value.requiredChannels,
+      `${path}.requiredChannels`,
+    ),
+    optionalChannels: parseDecoderChannelRoleCapabilityArray(
+      value.optionalChannels,
+      `${path}.optionalChannels`,
+    ),
+    options: parseDecoderOptionCapabilityArray(value.options, `${path}.options`),
+  };
+
+  if (value.label !== undefined) {
+    decoder.label = readDecoderCapabilitiesString(value.label, `${path}.label`) as string;
+  }
+  if (value.description !== undefined) {
+    decoder.description = readDecoderCapabilitiesString(
+      value.description,
+      `${path}.description`,
+    ) as string;
+  }
+
+  return decoder;
+};
+
+const parseDecoderRuntimeStreamSummary = (
+  value: unknown,
+  path: string,
+): DecoderRuntimeStreamSummary => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed decoder capabilities response at ${path}`);
+  }
+
+  return {
+    kind: readDecoderCapabilitiesEnum(
+      value.kind,
+      `${path}.kind`,
+      ["empty", "text", "bytes"] as const,
+    ) as DecoderRuntimeStreamSummary["kind"],
+    byteLength: readDecoderCapabilitiesNumber(value.byteLength, `${path}.byteLength`) as number,
+    textLength: readDecoderCapabilitiesNumber(value.textLength, `${path}.textLength`, true),
+    preview: readDecoderCapabilitiesString(value.preview, `${path}.preview`, true),
+    truncated: readDecoderCapabilitiesBoolean(value.truncated, `${path}.truncated`),
+  };
+};
+
+const parseDecoderCapabilityFailureDiagnosticsValue = (
+  value: unknown,
+  path: string,
+): DecoderCapabilityFailureDiagnostics => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed decoder capabilities response at ${path}`);
+  }
+
+  return {
+    phase: readDecoderCapabilitiesEnum(
+      value.phase,
+      `${path}.phase`,
+      DECODER_CAPABILITY_FAILURE_PHASES,
+    ) as DecoderCapabilityFailureDiagnostics["phase"],
+    providerKind: readDecoderCapabilitiesEnum(
+      value.providerKind,
+      `${path}.providerKind`,
+      INVENTORY_PROVIDER_KINDS,
+      true,
+    ) as DecoderCapabilityFailureDiagnostics["providerKind"],
+    backendKind: readDecoderCapabilitiesEnum(
+      value.backendKind,
+      `${path}.backendKind`,
+      INVENTORY_BACKEND_KINDS,
+      true,
+    ) as DecoderCapabilityFailureDiagnostics["backendKind"],
+    backendVersion: readDecoderCapabilitiesString(
+      value.backendVersion,
+      `${path}.backendVersion`,
+      true,
+    ),
+    timeoutMs: readDecoderCapabilitiesNumber(value.timeoutMs, `${path}.timeoutMs`, true),
+    nativeCode: readDecoderCapabilitiesString(value.nativeCode, `${path}.nativeCode`, true),
+    decoderOutput:
+      value.decoderOutput === null
+        ? null
+        : parseDecoderRuntimeStreamSummary(value.decoderOutput, `${path}.decoderOutput`),
+    diagnosticOutput:
+      value.diagnosticOutput === null
+        ? null
+        : parseDecoderRuntimeStreamSummary(
+            value.diagnosticOutput,
+            `${path}.diagnosticOutput`,
+          ),
+    details: Array.isArray(value.details)
+      ? value.details.map((entry, index) =>
+          readDecoderCapabilitiesString(entry, `${path}.details[${index}]`) as string,
+        )
+      : (() => {
+          throw new Error(`Malformed decoder capabilities response at ${path}.details`);
+        })(),
+    diagnostics: Array.isArray(value.diagnostics)
+      ? value.diagnostics.map((entry, index) =>
+          parseInventoryDiagnostic(entry, `${path}.diagnostics[${index}]`),
+        )
+      : (() => {
+          throw new Error(`Malformed decoder capabilities response at ${path}.diagnostics`);
+        })(),
+  };
+};
+
+const parseDecoderCapabilitiesResult = (value: unknown): DecoderCapabilitiesResult => {
+  if (!isObject(value)) {
+    throw new Error("Malformed decoder capabilities response at root");
+  }
+
+  const ok = readDecoderCapabilitiesBoolean(value.ok, "root.ok");
+  if (ok) {
+    return {
+      ok: true,
+      providerKind: readDecoderCapabilitiesEnum(
+        value.providerKind,
+        "root.providerKind",
+        INVENTORY_PROVIDER_KINDS,
+      ) as InventoryProviderKind,
+      backendKind: readDecoderCapabilitiesEnum(
+        value.backendKind,
+        "root.backendKind",
+        INVENTORY_BACKEND_KINDS,
+      ) as InventoryBackendKind,
+      backendVersion: readDecoderCapabilitiesString(
+        value.backendVersion,
+        "root.backendVersion",
+        true,
+      ),
+      deviceId: readDecoderCapabilitiesString(value.deviceId, "root.deviceId") as string,
+      requestedAt: readDecoderCapabilitiesString(value.requestedAt, "root.requestedAt") as string,
+      decoders: Array.isArray(value.decoders)
+        ? value.decoders.map((entry, index) =>
+            parseDecoderCapability(entry, `root.decoders[${index}]`),
+          )
+        : (() => {
+            throw new Error("Malformed decoder capabilities response at root.decoders");
+          })(),
+    };
+  }
+
+  if (value.decoders !== null) {
+    throw new Error("Malformed decoder capabilities response at root.decoders");
+  }
+
+  const reason = readDecoderCapabilitiesString(value.reason, "root.reason") as string;
+  if (reason !== "decoder-capabilities-failed") {
+    throw new Error("Malformed decoder capabilities response at root.reason");
+  }
+
+  return {
+    ok: false,
+    reason,
+    kind: readDecoderCapabilitiesEnum(
+      value.kind,
+      "root.kind",
+      DECODER_CAPABILITY_FAILURE_KINDS,
+    ) as DecoderCapabilityFailureKind,
+    message: readDecoderCapabilitiesString(value.message, "root.message") as string,
+    deviceId: readDecoderCapabilitiesString(value.deviceId, "root.deviceId") as string,
+    requestedAt: readDecoderCapabilitiesString(value.requestedAt, "root.requestedAt") as string,
+    decoders: null,
+    diagnostics: parseDecoderCapabilityFailureDiagnosticsValue(
+      value.diagnostics,
+      "root.diagnostics",
+    ),
+  };
+};
+
+const parseCaptureDecodeArtifactSummary = (
+  value: unknown,
+  path: string,
+): LiveCaptureArtifactSummary => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed capture-decode response at ${path}`);
+  }
+
+  return {
+    sourceName: readCaptureDecodeString(value.sourceName, `${path}.sourceName`, true),
+    formatHint: readCaptureDecodeString(value.formatHint, `${path}.formatHint`, true),
+    mediaType: readCaptureDecodeString(value.mediaType, `${path}.mediaType`, true),
+    capturedAt: readCaptureDecodeString(value.capturedAt, `${path}.capturedAt`, true),
+    byteLength: readCaptureDecodeNumber(value.byteLength, `${path}.byteLength`, true),
+    textLength: readCaptureDecodeNumber(value.textLength, `${path}.textLength`, true),
+    hasText: readCaptureDecodeBoolean(value.hasText, `${path}.hasText`),
+  };
+};
+
+const parseGenericRecordArray = (
+  value: unknown,
+  path: string,
+): Record<string, unknown>[] => {
+  if (!Array.isArray(value)) {
+    throw new Error(`Malformed capture-decode response at ${path}`);
+  }
+
+  return value.map((entry, index) => {
+    if (!isPlainRecord(entry)) {
+      throw new Error(`Malformed capture-decode response at ${path}[${index}]`);
+    }
+
+    return entry;
+  });
+};
+
+const parseCaptureDecodeReport = (
+  value: unknown,
+  path: string,
+): CaptureDecodeReport => {
+  if (!isPlainRecord(value)) {
+    throw new Error(`Malformed capture-decode response at ${path}`);
+  }
+
+  if (!isPlainRecord(value.raw)) {
+    throw new Error(`Malformed capture-decode response at ${path}.raw`);
+  }
+
+  return {
+    decoderId: readCaptureDecodeString(value.decoderId, `${path}.decoderId`) as string,
+    annotations: parseGenericRecordArray(value.annotations, `${path}.annotations`),
+    rows: parseGenericRecordArray(value.rows, `${path}.rows`),
+    raw: value.raw,
+  };
+};
+
+const parseCaptureDecodeStreamSummary = (
+  value: unknown,
+  path: string,
+): DecoderRuntimeStreamSummary => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed capture-decode response at ${path}`);
+  }
+
+  return {
+    kind: readCaptureDecodeEnum(
+      value.kind,
+      `${path}.kind`,
+      ["empty", "text", "bytes"] as const,
+    ) as DecoderRuntimeStreamSummary["kind"],
+    byteLength: readCaptureDecodeNumber(value.byteLength, `${path}.byteLength`) as number,
+    textLength: readCaptureDecodeNumber(value.textLength, `${path}.textLength`, true),
+    preview: readCaptureDecodeString(value.preview, `${path}.preview`, true),
+    truncated: readCaptureDecodeBoolean(value.truncated, `${path}.truncated`),
+  };
+};
+
+const parseCaptureDecodeFailureDiagnosticsValue = (
+  value: unknown,
+  path: string,
+): CaptureDecodeFailureDiagnostics => {
+  if (!isObject(value)) {
+    throw new Error(`Malformed capture-decode response at ${path}`);
+  }
+
+  return {
+    phase: readCaptureDecodeEnum(
+      value.phase,
+      `${path}.phase`,
+      CAPTURE_DECODE_FAILURE_PHASES,
+    ) as CaptureDecodeFailureDiagnostics["phase"],
+    providerKind: readCaptureDecodeEnum(
+      value.providerKind,
+      `${path}.providerKind`,
+      INVENTORY_PROVIDER_KINDS,
+      true,
+    ) as CaptureDecodeFailureDiagnostics["providerKind"],
+    backendKind: readCaptureDecodeEnum(
+      value.backendKind,
+      `${path}.backendKind`,
+      INVENTORY_BACKEND_KINDS,
+      true,
+    ) as CaptureDecodeFailureDiagnostics["backendKind"],
+    backendVersion: readCaptureDecodeString(value.backendVersion, `${path}.backendVersion`, true),
+    timeoutMs: readCaptureDecodeNumber(value.timeoutMs, `${path}.timeoutMs`, true),
+    nativeCode: readCaptureDecodeString(value.nativeCode, `${path}.nativeCode`, true),
+    captureOutput:
+      value.captureOutput === null
+        ? null
+        : parseLiveCaptureStreamSummary(value.captureOutput, `${path}.captureOutput`),
+    decoderOutput:
+      value.decoderOutput === null
+        ? null
+        : parseCaptureDecodeStreamSummary(value.decoderOutput, `${path}.decoderOutput`),
+    diagnosticOutput:
+      value.diagnosticOutput === null
+        ? null
+        : parseCaptureDecodeStreamSummary(
+            value.diagnosticOutput,
+            `${path}.diagnosticOutput`,
+          ),
+    details: Array.isArray(value.details)
+      ? value.details.map((entry, index) =>
+          readCaptureDecodeString(entry, `${path}.details[${index}]`) as string,
+        )
+      : (() => {
+          throw new Error(`Malformed capture-decode response at ${path}.details`);
+        })(),
+    diagnostics: Array.isArray(value.diagnostics)
+      ? value.diagnostics.map((entry, index) =>
+          parseInventoryDiagnostic(entry, `${path}.diagnostics[${index}]`),
+        )
+      : (() => {
+          throw new Error(`Malformed capture-decode response at ${path}.diagnostics`);
+        })(),
+  };
+};
+
+const parseCaptureDecodeResult = (value: unknown): CaptureDecodeResult => {
+  if (!isObject(value)) {
+    throw new Error("Malformed capture-decode response at root");
+  }
+
+  const ok = readCaptureDecodeBoolean(value.ok, "root.ok");
+  if (ok) {
+    return {
+      ok: true,
+      providerKind: readCaptureDecodeEnum(
+        value.providerKind,
+        "root.providerKind",
+        INVENTORY_PROVIDER_KINDS,
+      ) as InventoryProviderKind,
+      backendKind: readCaptureDecodeEnum(
+        value.backendKind,
+        "root.backendKind",
+        INVENTORY_BACKEND_KINDS,
+      ) as InventoryBackendKind,
+      session: parseLiveCaptureSession(value.session, "root.session"),
+      requestedAt: readCaptureDecodeString(value.requestedAt, "root.requestedAt") as string,
+      artifactSummary: parseCaptureDecodeArtifactSummary(
+        value.artifactSummary,
+        "root.artifactSummary",
+      ),
+      auxiliaryArtifactSummaries:
+        value.auxiliaryArtifactSummaries === undefined
+          ? undefined
+          : Array.isArray(value.auxiliaryArtifactSummaries)
+            ? value.auxiliaryArtifactSummaries.map((entry, index) =>
+                parseCaptureDecodeArtifactSummary(
+                  entry,
+                  `root.auxiliaryArtifactSummaries[${index}]`,
+                ),
+              )
+            : (() => {
+                throw new Error(
+                  "Malformed capture-decode response at root.auxiliaryArtifactSummaries",
+                );
+              })(),
+      decode: parseCaptureDecodeReport(value.decode, "root.decode"),
+    };
+  }
+
+  const reason = readCaptureDecodeString(value.reason, "root.reason") as string;
+  if (reason !== "capture-decode-failed") {
+    throw new Error("Malformed capture-decode response at root.reason");
+  }
+
+  return {
+    ok: false,
+    reason,
+    kind: readCaptureDecodeEnum(
+      value.kind,
+      "root.kind",
+      CAPTURE_DECODE_FAILURE_KINDS,
+    ) as CaptureDecodeFailureKind,
+    message: readCaptureDecodeString(value.message, "root.message") as string,
+    session: parseLiveCaptureSession(value.session, "root.session"),
+    requestedAt: readCaptureDecodeString(value.requestedAt, "root.requestedAt") as string,
+    artifactSummary:
+      value.artifactSummary === null
+        ? null
+        : parseCaptureDecodeArtifactSummary(
+            value.artifactSummary,
+            "root.artifactSummary",
+          ),
+    decode:
+      value.decode === null ? null : parseCaptureDecodeReport(value.decode, "root.decode"),
+    diagnostics: parseCaptureDecodeFailureDiagnosticsValue(
+      value.diagnostics,
+      "root.diagnostics",
+    ),
+  };
+};
+
 const parseLiveCaptureResult = (value: unknown): LiveCaptureResult => {
   if (!isObject(value)) {
     throw new Error("Malformed live capture response at root");
@@ -1368,6 +2000,32 @@ export class HttpResourceManager implements SnapshotResourceManager {
     return this.#requestJson(
       `${this.#baseUrl}/devices/options`,
       parseDeviceOptionsResult,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      },
+    );
+  }
+
+  async listDecoderCapabilities(
+    request: DecoderCapabilitiesRequest,
+  ): Promise<DecoderCapabilitiesResult> {
+    return this.#requestJson(
+      `${this.#baseUrl}/decoders/capabilities`,
+      parseDecoderCapabilitiesResult,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      },
+    );
+  }
+
+  async captureDecode(request: CaptureDecodeRequest): Promise<CaptureDecodeResult> {
+    return this.#requestJson(
+      `${this.#baseUrl}/capture/decode`,
+      parseCaptureDecodeResult,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -185,6 +185,190 @@ export interface LiveCaptureTuning {
   threshold?: string;
 }
 
+export type DecoderOptionValue = string | number | boolean;
+
+export const DECODER_CAPABILITY_FAILURE_PHASES = [
+  "validate-device",
+  "prepare-runtime",
+  "list-decoders",
+  "inspect-decoder",
+  "parse-decoders"
+] as const;
+export type DecoderCapabilityFailurePhase =
+  (typeof DECODER_CAPABILITY_FAILURE_PHASES)[number];
+
+export const DECODER_CAPABILITY_FAILURE_KINDS = [
+  "device-not-found",
+  "unsupported-runtime",
+  "runtime-unavailable",
+  "native-error",
+  "timeout",
+  "malformed-output"
+] as const;
+export type DecoderCapabilityFailureKind =
+  (typeof DECODER_CAPABILITY_FAILURE_KINDS)[number];
+
+export const CAPTURE_DECODE_FAILURE_PHASES = [
+  "validate-session",
+  "prepare-runtime",
+  "capture",
+  "decode-validation",
+  "decode-run",
+  "collect-artifact"
+] as const;
+export type CaptureDecodeFailurePhase =
+  (typeof CAPTURE_DECODE_FAILURE_PHASES)[number];
+
+export const CAPTURE_DECODE_FAILURE_KINDS = [
+  "device-not-found",
+  "device-not-allocated",
+  "owner-mismatch",
+  "unsupported-runtime",
+  "runtime-unavailable",
+  "capture-failed",
+  "decode-failed",
+  "timeout",
+  "malformed-output"
+] as const;
+export type CaptureDecodeFailureKind =
+  (typeof CAPTURE_DECODE_FAILURE_KINDS)[number];
+
+export interface DecoderChannelRoleCapability {
+  id: string;
+  label?: string;
+  description?: string;
+}
+
+export interface DecoderOptionCapability {
+  id: string;
+  label?: string;
+  description?: string;
+  valueType?: "string" | "number" | "boolean";
+  required?: boolean;
+  values: readonly DecoderOptionValue[];
+}
+
+export interface DecoderCapability {
+  decoderId: string;
+  label?: string;
+  description?: string;
+  requiredChannels: readonly DecoderChannelRoleCapability[];
+  optionalChannels: readonly DecoderChannelRoleCapability[];
+  options: readonly DecoderOptionCapability[];
+}
+
+export interface DecoderRuntimeStreamSummary {
+  kind: "empty" | "text" | "bytes";
+  byteLength: number;
+  textLength: number | null;
+  preview: string | null;
+  truncated: boolean;
+}
+
+export interface DecoderCapabilityFailureDiagnostics {
+  phase: DecoderCapabilityFailurePhase;
+  providerKind: InventoryProviderKind | null;
+  backendKind: InventoryBackendKind | null;
+  backendVersion: string | null;
+  timeoutMs: number | null;
+  nativeCode: string | null;
+  decoderOutput: DecoderRuntimeStreamSummary | null;
+  diagnosticOutput: DecoderRuntimeStreamSummary | null;
+  details: readonly string[];
+  diagnostics: readonly InventoryDiagnostic[];
+}
+
+export interface DecoderCapabilitiesRequest {
+  deviceId: string;
+  requestedAt: string;
+  timeoutMs?: number;
+}
+
+export interface DecoderCapabilitiesSuccess {
+  ok: true;
+  providerKind: InventoryProviderKind;
+  backendKind: InventoryBackendKind;
+  backendVersion: string | null;
+  deviceId: string;
+  requestedAt: string;
+  decoders: readonly DecoderCapability[];
+}
+
+export interface DecoderCapabilitiesFailure {
+  ok: false;
+  reason: "decoder-capabilities-failed";
+  kind: DecoderCapabilityFailureKind;
+  message: string;
+  deviceId: string;
+  requestedAt: string;
+  decoders: null;
+  diagnostics: DecoderCapabilityFailureDiagnostics;
+}
+
+export type DecoderCapabilitiesResult =
+  | DecoderCapabilitiesSuccess
+  | DecoderCapabilitiesFailure;
+
+export interface CaptureDecodeConfig {
+  decoderId: string;
+  channelMappings: Readonly<Record<string, string>>;
+  decoderOptions?: Readonly<Record<string, DecoderOptionValue>>;
+}
+
+export interface CaptureDecodeRequest {
+  session: LiveCaptureSession;
+  requestedAt: string;
+  timeoutMs?: number;
+  captureTuning?: LiveCaptureTuning;
+  decode: CaptureDecodeConfig;
+}
+
+export interface CaptureDecodeReport {
+  decoderId: string;
+  annotations: readonly Record<string, unknown>[];
+  rows: readonly Record<string, unknown>[];
+  raw: Record<string, unknown>;
+}
+
+export interface CaptureDecodeFailureDiagnostics {
+  phase: CaptureDecodeFailurePhase;
+  providerKind: InventoryProviderKind | null;
+  backendKind: InventoryBackendKind | null;
+  backendVersion: string | null;
+  timeoutMs: number | null;
+  nativeCode: string | null;
+  captureOutput: LiveCaptureStreamSummary | null;
+  decoderOutput: DecoderRuntimeStreamSummary | null;
+  diagnosticOutput: DecoderRuntimeStreamSummary | null;
+  details: readonly string[];
+  diagnostics: readonly InventoryDiagnostic[];
+}
+
+export interface CaptureDecodeSuccess {
+  ok: true;
+  providerKind: InventoryProviderKind;
+  backendKind: InventoryBackendKind;
+  session: LiveCaptureSession;
+  requestedAt: string;
+  artifactSummary: LiveCaptureArtifactSummary;
+  auxiliaryArtifactSummaries?: readonly LiveCaptureArtifactSummary[];
+  decode: CaptureDecodeReport;
+}
+
+export interface CaptureDecodeFailure {
+  ok: false;
+  reason: "capture-decode-failed";
+  kind: CaptureDecodeFailureKind;
+  message: string;
+  session: LiveCaptureSession;
+  requestedAt: string;
+  artifactSummary: LiveCaptureArtifactSummary | null;
+  decode: CaptureDecodeReport | null;
+  diagnostics: CaptureDecodeFailureDiagnostics;
+}
+
+export type CaptureDecodeResult = CaptureDecodeSuccess | CaptureDecodeFailure;
+
 export interface LiveCaptureFailureDiagnostics {
   phase: LiveCaptureFailurePhase;
   providerKind: InventoryProviderKind | null;
@@ -236,6 +420,10 @@ export interface ResourceManager {
   allocateDevice(request: AllocationRequest): Promise<AllocationResult>;
   releaseDevice(request: ReleaseRequest): Promise<ReleaseResult>;
   inspectDeviceOptions(request: DeviceOptionsRequest): Promise<DeviceOptionsResult>;
+  listDecoderCapabilities(
+    request: DecoderCapabilitiesRequest
+  ): Promise<DecoderCapabilitiesResult>;
+  captureDecode(request: CaptureDecodeRequest): Promise<CaptureDecodeResult>;
   liveCapture(request: LiveCaptureRequest): Promise<LiveCaptureResult>;
 }
 
