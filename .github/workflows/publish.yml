@@ -69,8 +69,10 @@ jobs:
 
       - name: Publish packages
         env:
-          LPM_ZHUOBIN_TOKEN: ${{ secrets.LPM_ZHUOBIN_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          LPM_PASSWORD_BASE64: ${{ secrets.LPM_PASSWORD_BASE64 }}
+          LPM_USERNAME: ${{ secrets.LPM_USERNAME }}
+          LPM_EMAIL: ${{ secrets.LPM_EMAIL }}
+          LPM_ADMIN_TOKEN: ${{ secrets.LPM_ADMIN_TOKEN }}
           CONFIRM_PUBLISH: ${{ inputs.confirm_publish }}
         run: |
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
