@@ -106,14 +106,14 @@ describe("skill package asset contract", () => {
     const rootReadme = readFileSync(rootReadmePath, "utf8");
 
     expect(packageReadme).toContain("canonical home of the logic-analyzer host assets");
-    expect(packageReadme).toContain('from "@listenai/skill-logic-analyzer"');
+    expect(packageReadme).toContain('from "@listenai/eaw-skill-logic-analyzer"');
     expect(packageReadme).toContain("document and import the package-owned surface directly");
     expect(packageReadme).toContain("Decode output is additive");
     expect(packageReadme).toContain("Resource-manager remains the live capture authority");
     expect(packageReadme).not.toContain(`./${legacySkillDir}/README.md`);
 
     expect(packageSkill).toContain("authoritative host-facing assets");
-    expect(packageSkill).toContain("@listenai/skill-logic-analyzer");
+    expect(packageSkill).toContain("@listenai/eaw-skill-logic-analyzer");
     expect(packageSkill).toContain("treat the package-owned documentation and exports as the source of truth");
     expect(packageSkill).toContain("optional offline protocol decode");
     expect(packageSkill).toContain("Resource-manager remains responsible for hardware allocation and live capture");

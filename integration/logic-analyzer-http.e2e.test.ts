@@ -6,7 +6,7 @@ import type {
   InventorySnapshot,
   LeaseInfo,
   LiveCaptureResult,
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import {
   FakeDeviceProvider,
   LeaseManager,
@@ -14,12 +14,12 @@ import {
   createDslogicLiveCaptureRunner,
   createResourceManager,
   createServer,
-} from "@listenai/resource-manager";
-import { HttpResourceManager } from "@listenai/resource-client";
+} from "@listenai/eaw-resource-manager";
+import { HttpResourceManager } from "@listenai/eaw-resource-client";
 import {
   createGenericLogicAnalyzerSkill,
   createLogicAnalyzerSkill,
-} from "@listenai/skill-logic-analyzer";
+} from "@listenai/eaw-skill-logic-analyzer";
 
 const connectedAt = "2026-03-26T00:00:00.000Z";
 const allocatedAt = "2026-03-26T00:01:00.000Z";

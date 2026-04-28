@@ -1,4 +1,4 @@
-import type { InventorySnapshot } from "@listenai/contracts"
+import type { InventorySnapshot } from "@listenai/eaw-contracts"
 import type { DeviceProvider, DiscoveredDevice } from "../device-provider.js"
 import { FakeDeviceProvider } from "../testing/fake-device-provider.js"
 import {

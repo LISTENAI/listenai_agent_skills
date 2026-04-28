@@ -9,7 +9,7 @@ trap 'if [[ -n "${PORT}" ]]; then node "$ROOT_DIR/packages/resource-manager/dist
 cd "$ROOT_DIR"
 
 echo "[m003-s03] Building resource-manager"
-pnpm --filter @listenai/resource-manager build
+pnpm --filter @listenai/eaw-resource-manager build
 
 PORT="$(node -e "const s=require('node:net').createServer(); s.listen(0,'127.0.0.1',()=>{console.log(s.address().port); s.close();});")"
 CLI="$ROOT_DIR/packages/resource-manager/dist/cli.js"

@@ -1,4 +1,4 @@
-# @listenai/resource-manager
+# @listenai/eaw-resource-manager
 
 <h4 align="right"><strong>English</strong> | <a href="README.zh-CN.md">简体中文</a></h4>
 
@@ -18,7 +18,7 @@ import {
   createServer,
   createDeviceProvider,
   type SnapshotResourceManager
-} from "@listenai/resource-manager";
+} from "@listenai/eaw-resource-manager";
 ```
 
 The package also ships a CLI bin named `resource-manager`. Published packages wire the bin to compiled `dist/cli.js`.
@@ -38,13 +38,13 @@ Configure the `@listenai` scope in npm, pnpm, yarn, or CI before installing. Do 
 The recommended user path is to run the package binary from the private registry:
 
 ```bash
-npm exec --package @listenai/resource-manager -- \
+npm exec --package @listenai/eaw-resource-manager -- \
   resource-manager start --host 127.0.0.1 --port 7600
 
-pnpm dlx --package @listenai/resource-manager \
+pnpm dlx --package @listenai/eaw-resource-manager \
   resource-manager start --host 127.0.0.1 --port 7600
 
-yarn dlx @listenai/resource-manager \
+yarn dlx @listenai/eaw-resource-manager \
   resource-manager start --host 127.0.0.1 --port 7600
 ```
 
@@ -69,7 +69,7 @@ The daemon is intended to be a user-home global singleton that can be reused acr
 Source workspace commands are for contributors. From the repository root, the direct development command is:
 
 ```bash
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 0.0.0.0 --port 7600
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --host 0.0.0.0 --port 7600
 ```
 
 CLI options:
@@ -88,13 +88,13 @@ Examples:
 
 ```bash
 # Default DSLogic-backed startup
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts
 
 # Force the fake provider for local smoke tests while keeping the runtime LAN-visible
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --provider fake --host 0.0.0.0 --port 7600
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --provider fake --host 0.0.0.0 --port 7600
 
 # Equivalent provider selection through env
-RESOURCE_MANAGER_PROVIDER=fake pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --port 7600
+RESOURCE_MANAGER_PROVIDER=fake pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --port 7600
 ```
 
 When startup succeeds, the process logs `Server listening on http://<host>:<port>`.
@@ -269,7 +269,7 @@ curl -X POST http://127.0.0.1:7600/capture/live \
   }'
 ```
 
-For real capture payloads, prefer building requests from the shared `@listenai/contracts` types or the `@listenai/resource-client` HTTP client rather than hand-writing large JSON bodies.
+For real capture payloads, prefer building requests from the shared `@listenai/eaw-contracts` types or the `@listenai/eaw-resource-client` HTTP client rather than hand-writing large JSON bodies.
 
 ## Programmatic startup
 
@@ -281,7 +281,7 @@ import {
   LeaseManager,
   createDeviceProvider,
   createServer
-} from "@listenai/resource-manager";
+} from "@listenai/eaw-resource-manager";
 
 const provider = createDeviceProvider({
   providerKind: "fake",
@@ -326,8 +326,8 @@ server.stop();
 Focused package checks:
 
 ```bash
-pnpm --filter @listenai/resource-manager test
-pnpm --filter @listenai/resource-manager typecheck
+pnpm --filter @listenai/eaw-resource-manager test
+pnpm --filter @listenai/eaw-resource-manager typecheck
 ```
 
 Slice verification seam for the M010 cross-platform support story:

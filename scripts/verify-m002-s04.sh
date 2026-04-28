@@ -16,20 +16,20 @@ if rg -n "(sampleRateHz|sample-rate|sample rate).*(100_000_000|200_000_000|400_0
 fi
 
 echo "[verify-m002-s04] contracts typecheck"
-pnpm --filter @listenai/contracts typecheck
+pnpm --filter @listenai/eaw-contracts typecheck
 
 echo "[verify-m002-s04] resource-manager DSLogic/resource/server tests"
-pnpm --filter @listenai/resource-manager exec vitest run \
+pnpm --filter @listenai/eaw-resource-manager exec vitest run \
   src/resource-manager.test.ts \
   src/server/app.test.ts \
   src/dslogic/native-runtime.test.ts \
   src/dslogic/live-capture.test.ts
 
 echo "[verify-m002-s04] resource-client HTTP parser tests"
-pnpm --filter @listenai/resource-client exec vitest run src/http-resource-manager.test.ts
+pnpm --filter @listenai/eaw-resource-client exec vitest run src/http-resource-manager.test.ts
 
 echo "[verify-m002-s04] skill logic analyzer tests"
-pnpm --filter @listenai/skill-logic-analyzer exec vitest run \
+pnpm --filter @listenai/eaw-skill-logic-analyzer exec vitest run \
   src/session-constraints.test.ts \
   src/logic-analyzer-skill.test.ts \
   src/generic-skill.test.ts

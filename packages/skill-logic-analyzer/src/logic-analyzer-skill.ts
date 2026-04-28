@@ -16,7 +16,7 @@ import type {
   LiveCaptureArtifact,
   LiveCaptureResult,
   SnapshotResourceManager,
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 
 export interface LogicAnalyzerSkill {
   startSession(request: unknown): Promise<StartLogicAnalyzerSessionResult>;

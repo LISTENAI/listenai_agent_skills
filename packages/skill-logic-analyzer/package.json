@@ -1,5 +1,5 @@
 {
-  "name": "@listenai/skill-logic-analyzer",
+  "name": "@listenai/eaw-skill-logic-analyzer",
   "version": "0.0.1",
   "type": "module",
   "exports": {
@@ -42,10 +42,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@listenai/contracts": "workspace:*"
+    "@listenai/eaw-contracts": "workspace:*"
   },
   "devDependencies": {
-    "@listenai/resource-manager": "workspace:*",
+    "@listenai/eaw-resource-manager": "workspace:*",
     "@types/node": "^25.5.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

@@ -21,8 +21,8 @@ A fresh mirrored worktree will not have workspace links until that install compl
 
 This repository uses a pnpm workspace with two top-level boundaries:
 
-- `packages/` contains runtime applications and package-owned implementations, including the `@listenai/resource-manager` server/CLI and the `@listenai/skill-logic-analyzer` skill package.
-- `share/` contains reusable shared packages consumed across the workspace, including `@listenai/contracts` and `@listenai/resource-client`.
+- `packages/` contains runtime applications and package-owned implementations, including the `@listenai/eaw-resource-manager` server/CLI and the `@listenai/eaw-skill-logic-analyzer` skill package.
+- `share/` contains reusable shared packages consumed across the workspace, including `@listenai/eaw-contracts` and `@listenai/eaw-resource-client`.
 
 When you add or move code, keep package ownership explicit instead of introducing a new root-level runtime surface.
 
@@ -46,12 +46,12 @@ Use the root scripts directly when validating changes so local behavior matches 
 
 ## Manual runtime checks
 
-For deeper hands-on validation, the packaged resource-manager CLI lives at `packages/resource-manager/src/cli.ts` and is exposed by the `@listenai/resource-manager` package.
+For deeper hands-on validation, the packaged resource-manager CLI lives at `packages/resource-manager/src/cli.ts` and is exposed by the `@listenai/eaw-resource-manager` package.
 
 You can start it from the repo root with:
 
 ```bash
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
 ```
 
 That gives you a real HTTP surface for manual checks without inventing a separate development entrypoint.

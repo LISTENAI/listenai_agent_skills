@@ -19,4 +19,4 @@ echo "[verify-m010-s04] packaged HTTP and skill proof"
 pnpm exec vitest run integration/logic-analyzer-http.e2e.test.ts --exclude ".gsd/worktrees/**"
 
 echo "[verify-m010-s04] resource-manager typecheck"
-pnpm --filter @listenai/resource-manager typecheck
+pnpm --filter @listenai/eaw-resource-manager typecheck

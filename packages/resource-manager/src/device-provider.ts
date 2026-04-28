@@ -5,7 +5,7 @@ import type {
   InventorySnapshot,
   LiveCaptureRequest,
   LiveCaptureResult
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 
 export interface DiscoveredDevice {
   deviceId: string;

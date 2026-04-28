@@ -4,7 +4,7 @@ import type {
   DeviceRecord,
   InventorySnapshot,
   SnapshotResourceManager
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import {
   GENERIC_LOGIC_ANALYZER_MODES,
   GENERIC_LOGIC_ANALYZER_PHASES,
@@ -22,7 +22,7 @@ import {
   FakeDeviceProvider,
   createDslogicLiveCaptureRunner,
   createResourceManager
-} from "@listenai/resource-manager";
+} from "@listenai/eaw-resource-manager";
 
 const connectedAt = "2026-03-26T00:00:00.000Z";
 const allocatedAt = "2026-03-26T00:01:00.000Z";

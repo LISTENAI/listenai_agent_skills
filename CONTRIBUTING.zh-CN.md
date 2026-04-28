@@ -21,8 +21,8 @@ pnpm install --frozen-lockfile
 
 这个仓库使用 pnpm workspace，并且有两个顶层边界：
 
-- `packages/` 保存运行时应用与由 package 拥有的实现，其中包括 `@listenai/resource-manager` server/CLI 以及 `@listenai/skill-logic-analyzer` skill package。
-- `share/` 保存整个 workspace 复用的共享 packages，其中包括 `@listenai/contracts` 和 `@listenai/resource-client`。
+- `packages/` 保存运行时应用与由 package 拥有的实现，其中包括 `@listenai/eaw-resource-manager` server/CLI 以及 `@listenai/eaw-skill-logic-analyzer` skill package。
+- `share/` 保存整个 workspace 复用的共享 packages，其中包括 `@listenai/eaw-contracts` 和 `@listenai/eaw-resource-client`。
 
 当你新增或移动代码时，请保持 package ownership 清晰，而不是再引入一个新的根级运行时 surface。
 
@@ -46,12 +46,12 @@ bash scripts/verify-s01.sh
 
 ## Manual runtime checks
 
-若需要更深入的手动验证，打包后的 resource-manager CLI 位于 `packages/resource-manager/src/cli.ts`，并由 `@listenai/resource-manager` package 对外暴露。
+若需要更深入的手动验证，打包后的 resource-manager CLI 位于 `packages/resource-manager/src/cli.ts`，并由 `@listenai/eaw-resource-manager` package 对外暴露。
 
 你可以在仓库根目录这样启动它：
 
 ```bash
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
 ```
 
 这样你就能获得一个真实的 HTTP surface 用于手动检查，而不必另外发明一个开发入口。

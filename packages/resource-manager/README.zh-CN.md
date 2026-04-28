@@ -1,4 +1,4 @@
-# @listenai/resource-manager
+# @listenai/eaw-resource-manager
 
 <h4 align="right"><a href="README.md">English</a> | <strong>简体中文</strong></h4>
 
@@ -18,7 +18,7 @@ import {
   createServer,
   createDeviceProvider,
   type SnapshotResourceManager
-} from "@listenai/resource-manager";
+} from "@listenai/eaw-resource-manager";
 ```
 
 这个 package 还带有一个名为 `resource-manager` 的 CLI bin。发布包中的 bin 指向编译后的 `dist/cli.js`。
@@ -38,13 +38,13 @@ https://registry-lpm.listenai.com
 推荐的使用者路径是从私有 registry 运行 package binary：
 
 ```bash
-npm exec --package @listenai/resource-manager -- \
+npm exec --package @listenai/eaw-resource-manager -- \
   resource-manager start --host 127.0.0.1 --port 7600
 
-pnpm dlx --package @listenai/resource-manager \
+pnpm dlx --package @listenai/eaw-resource-manager \
   resource-manager start --host 127.0.0.1 --port 7600
 
-yarn dlx @listenai/resource-manager \
+yarn dlx @listenai/eaw-resource-manager \
   resource-manager start --host 127.0.0.1 --port 7600
 ```
 
@@ -69,7 +69,7 @@ resource-manager stop
 源码 workspace 命令只面向贡献者。如果你在仓库根目录中工作，最直接的开发命令是：
 
 ```bash
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --host 127.0.0.1 --port 7600
 ```
 
 CLI 参数：
@@ -88,13 +88,13 @@ CLI 也会读取 `RESOURCE_MANAGER_PROVIDER`、`RESOURCE_MANAGER_INVENTORY_POLL_
 
 ```bash
 # 使用默认的 DSLogic provider 启动
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts
 
 # 强制使用 fake provider 做本地存活性和路由冒烟检查
-pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --provider fake --host 127.0.0.1 --port 7600
+pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --provider fake --host 127.0.0.1 --port 7600
 
 # 通过环境变量选择 provider，效果等价
-RESOURCE_MANAGER_PROVIDER=fake pnpm --filter @listenai/resource-manager exec tsx src/cli.ts --port 7600
+RESOURCE_MANAGER_PROVIDER=fake pnpm --filter @listenai/eaw-resource-manager exec tsx src/cli.ts --port 7600
 ```
 
 启动成功后，进程会打印 `Server listening on http://<host>:<port>`。
@@ -251,7 +251,7 @@ curl -X POST http://127.0.0.1:7600/capture/live \
   }'
 ```
 
-对于真实的 capture payload，优先使用共享的 `@listenai/contracts` 类型或 `@listenai/resource-client` 的 HTTP client 来构造请求，而不是手写大段 JSON。
+对于真实的 capture payload，优先使用共享的 `@listenai/eaw-contracts` 类型或 `@listenai/eaw-resource-client` 的 HTTP client 来构造请求，而不是手写大段 JSON。
 
 ## 程序化启动
 
@@ -263,7 +263,7 @@ import {
   LeaseManager,
   createDeviceProvider,
   createServer
-} from "@listenai/resource-manager";
+} from "@listenai/eaw-resource-manager";
 
 const provider = createDeviceProvider({
   providerKind: "fake",
@@ -308,8 +308,8 @@ server.stop();
 聚焦这个 package 自己的检查：
 
 ```bash
-pnpm --filter @listenai/resource-manager test
-pnpm --filter @listenai/resource-manager typecheck
+pnpm --filter @listenai/eaw-resource-manager test
+pnpm --filter @listenai/eaw-resource-manager typecheck
 ```
 
 用于 M010 跨平台支持叙事的 slice 验收 seam：

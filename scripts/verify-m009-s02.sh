@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-pnpm --filter @listenai/resource-manager exec vitest run src/dslogic/backend-probe.test.ts src/dslogic/dslogic-device-provider.test.ts src/resource-manager.test.ts
+pnpm --filter @listenai/eaw-resource-manager exec vitest run src/dslogic/backend-probe.test.ts src/dslogic/dslogic-device-provider.test.ts src/resource-manager.test.ts
 
 if rg -n "DSView|dsview|executablePath" \
   packages/resource-manager/src/dslogic/backend-probe.ts \

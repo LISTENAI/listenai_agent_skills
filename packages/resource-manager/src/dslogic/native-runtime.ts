@@ -15,7 +15,7 @@ import type {
   LiveCaptureFailurePhase,
   LiveCaptureRequest,
   LiveCaptureTuning
-} from "@listenai/contracts"
+} from "@listenai/eaw-contracts"
 import type { DslogicProbeDeviceCandidate } from "./backend-probe.js"
 
 export const DSLOGIC_NATIVE_BACKEND_KIND = "dsview-cli" as const

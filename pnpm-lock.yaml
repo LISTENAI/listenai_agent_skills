@@ -11,16 +11,16 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.11
         version: 1.19.11(hono@4.12.9)
-      '@listenai/contracts':
+      '@listenai/eaw-contracts':
         specifier: workspace:*
         version: link:share/contracts
-      '@listenai/resource-client':
+      '@listenai/eaw-resource-client':
         specifier: workspace:*
         version: link:share/resource-client
-      '@listenai/resource-manager':
+      '@listenai/eaw-resource-manager':
         specifier: workspace:*
         version: link:packages/resource-manager
-      '@listenai/skill-logic-analyzer':
+      '@listenai/eaw-skill-logic-analyzer':
         specifier: workspace:*
         version: link:packages/skill-logic-analyzer
       hono:
@@ -45,7 +45,7 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.11
         version: 1.19.11(hono@4.12.9)
-      '@listenai/contracts':
+      '@listenai/eaw-contracts':
         specifier: workspace:*
         version: link:../../share/contracts
       hono:
@@ -64,11 +64,11 @@ importers:
 
   packages/skill-logic-analyzer:
     dependencies:
-      '@listenai/contracts':
+      '@listenai/eaw-contracts':
         specifier: workspace:*
         version: link:../../share/contracts
     devDependencies:
-      '@listenai/resource-manager':
+      '@listenai/eaw-resource-manager':
         specifier: workspace:*
         version: link:../resource-manager
       '@types/node':
@@ -85,7 +85,7 @@ importers:
 
   share/resource-client:
     dependencies:
-      '@listenai/contracts':
+      '@listenai/eaw-contracts':
         specifier: workspace:*
         version: link:../contracts
     devDependencies:

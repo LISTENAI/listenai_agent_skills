@@ -10,10 +10,10 @@ NPM_USERCONFIG="$TMP_DIR/npmrc"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 PACKAGES=(
-  "@listenai/contracts:share/contracts"
-  "@listenai/resource-client:share/resource-client"
-  "@listenai/resource-manager:packages/resource-manager"
-  "@listenai/skill-logic-analyzer:packages/skill-logic-analyzer"
+  "@listenai/eaw-contracts:share/contracts"
+  "@listenai/eaw-resource-client:share/resource-client"
+  "@listenai/eaw-resource-manager:packages/resource-manager"
+  "@listenai/eaw-skill-logic-analyzer:packages/skill-logic-analyzer"
 )
 
 usage() {

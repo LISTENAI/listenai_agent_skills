@@ -2,9 +2,9 @@
 import { describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { createResourceManager, createServer, FakeDeviceProvider, LeaseManager } from "@listenai/resource-manager";
-import { HttpResourceManager } from "@listenai/resource-client";
-import type { DeviceRecord, InventorySnapshot, LeaseInfo } from "@listenai/contracts";
+import { createResourceManager, createServer, FakeDeviceProvider, LeaseManager } from "@listenai/eaw-resource-manager";
+import { HttpResourceManager } from "@listenai/eaw-resource-client";
+import type { DeviceRecord, InventorySnapshot, LeaseInfo } from "@listenai/eaw-contracts";
 
 interface WorkerResult {
   ok: boolean;

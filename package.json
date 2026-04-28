@@ -1,14 +1,14 @@
 {
-  "name": "listenai-agent-skills",
+  "name": "listenai-embedded-agent-workbench",
   "version": "0.0.1",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "type": "module",
   "scripts": {
-    "test": "pnpm --filter @listenai/resource-manager exec vitest run src/resource-manager.test.ts src/server/app.test.ts src/server/lease-manager.test.ts src/server/lease-integration.test.ts && pnpm --filter @listenai/resource-client exec vitest run src/http-resource-manager.test.ts && pnpm --filter @listenai/skill-logic-analyzer exec vitest run src/logic-analyzer-skill.test.ts src/generic-skill.test.ts src/capture-loader.test.ts src/waveform-analyzer.test.ts",
+    "test": "pnpm --filter @listenai/eaw-resource-manager exec vitest run src/resource-manager.test.ts src/server/app.test.ts src/server/lease-manager.test.ts src/server/lease-integration.test.ts && pnpm --filter @listenai/eaw-resource-client exec vitest run src/http-resource-manager.test.ts && pnpm --filter @listenai/eaw-skill-logic-analyzer exec vitest run src/logic-analyzer-skill.test.ts src/generic-skill.test.ts src/capture-loader.test.ts src/waveform-analyzer.test.ts",
     "test:s06": "vitest run integration/resource-manager.e2e.test.ts",
     "test:s07": "pnpm exec vitest run integration/logic-analyzer-http.e2e.test.ts",
-    "build": "pnpm --filter @listenai/contracts build && pnpm --filter @listenai/resource-client build && pnpm --filter @listenai/resource-manager build && pnpm --filter @listenai/skill-logic-analyzer build",
+    "build": "pnpm --filter @listenai/eaw-contracts build && pnpm --filter @listenai/eaw-resource-client build && pnpm --filter @listenai/eaw-resource-manager build && pnpm --filter @listenai/eaw-skill-logic-analyzer build",
     "typecheck": "pnpm build && tsc --noEmit",
     "verify:m002:s04": "bash scripts/verify-m002-s04.sh",
     "verify:m004:s01": "bash scripts/verify-m004-s01.sh",
@@ -45,10 +45,10 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",
-    "@listenai/contracts": "workspace:*",
-    "@listenai/resource-client": "workspace:*",
-    "@listenai/resource-manager": "workspace:*",
-    "@listenai/skill-logic-analyzer": "workspace:*",
+    "@listenai/eaw-contracts": "workspace:*",
+    "@listenai/eaw-resource-client": "workspace:*",
+    "@listenai/eaw-resource-manager": "workspace:*",
+    "@listenai/eaw-skill-logic-analyzer": "workspace:*",
     "hono": "^4.12.9"
   }
 }

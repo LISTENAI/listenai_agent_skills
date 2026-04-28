@@ -5,7 +5,7 @@ import {
   type DeviceRecord,
   type InventoryDiagnostic,
   type InventorySnapshot
-} from "@listenai/contracts"
+} from "@listenai/eaw-contracts"
 import type {
   DeviceOptionsProvider,
   DeviceProvider,

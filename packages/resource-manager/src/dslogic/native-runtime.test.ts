@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { DeviceOptionsRequest, LiveCaptureRequest } from "@listenai/contracts"
+import type { DeviceOptionsRequest, LiveCaptureRequest } from "@listenai/eaw-contracts"
 import {
   createDefaultDslogicNativeDeviceOptionsBackend,
   createDefaultDslogicNativeLiveCaptureBackend,

@@ -39,10 +39,10 @@ require_pattern "already exists" "$SCRIPT"
 require_pattern "Could not confirm" "$SCRIPT"
 require_pattern "--dry-run" "$SCRIPT"
 require_pattern "--userconfig" "$SCRIPT"
-require_pattern "@listenai/contracts:share/contracts" "$SCRIPT"
-require_pattern "@listenai/resource-client:share/resource-client" "$SCRIPT"
-require_pattern "@listenai/resource-manager:packages/resource-manager" "$SCRIPT"
-require_pattern "@listenai/skill-logic-analyzer:packages/skill-logic-analyzer" "$SCRIPT"
+require_pattern "@listenai/eaw-contracts:share/contracts" "$SCRIPT"
+require_pattern "@listenai/eaw-resource-client:share/resource-client" "$SCRIPT"
+require_pattern "@listenai/eaw-resource-manager:packages/resource-manager" "$SCRIPT"
+require_pattern "@listenai/eaw-skill-logic-analyzer:packages/skill-logic-analyzer" "$SCRIPT"
 
 if LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-no-confirm.out 2>&1; then
   echo "[m004-s01] --publish without confirmation unexpectedly succeeded" >&2
@@ -72,7 +72,7 @@ if ! rg -q "Completed dry-run for 4 package" /tmp/m004-publish-dry-run.out; then
   cat /tmp/m004-publish-dry-run.out >&2
   exit 1
 fi
-if ! rg -q "Dry-run publishing @listenai/contracts" /tmp/m004-publish-dry-run.out; then
+if ! rg -q "Dry-run publishing @listenai/eaw-contracts" /tmp/m004-publish-dry-run.out; then
   echo "[m004-s01] dry-run did not publish packages in expected observable form" >&2
   cat /tmp/m004-publish-dry-run.out >&2
   exit 1

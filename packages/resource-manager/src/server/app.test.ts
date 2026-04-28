@@ -1,4 +1,4 @@
-import type { DeviceOptionsFailure, InventorySnapshot, SnapshotResourceManager } from "@listenai/contracts";
+import type { DeviceOptionsFailure, InventorySnapshot, SnapshotResourceManager } from "@listenai/eaw-contracts";
 import { describe, expect, it, vi } from "vitest";
 import { createResourceManager } from "../resource-manager.js";
 import { FakeDeviceProvider } from "../testing/fake-device-provider.js";

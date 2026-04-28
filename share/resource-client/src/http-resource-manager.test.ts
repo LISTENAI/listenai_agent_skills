@@ -6,7 +6,7 @@ import type {
   DeviceRecord,
   InventorySnapshot,
   ReleaseRequest,
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import { HttpResourceManager } from "./http-resource-manager.js";
 
 const fakeDevice: DeviceRecord = {

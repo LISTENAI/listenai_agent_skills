@@ -1,5 +1,5 @@
 {
-  "name": "@listenai/resource-client",
+  "name": "@listenai/eaw-resource-client",
   "version": "0.0.1",
   "type": "module",
   "exports": {
@@ -19,7 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@listenai/contracts": "workspace:*"
+    "@listenai/eaw-contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

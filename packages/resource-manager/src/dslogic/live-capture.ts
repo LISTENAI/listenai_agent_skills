@@ -20,7 +20,7 @@ import {
   type LiveCaptureSession,
   type LiveCaptureStreamSummary,
   type LiveCaptureSuccess
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import type { DeviceOptionsProvider, LiveCaptureProvider } from "../device-provider.js";
 import {
   createDslogicNativeDeviceOptionsBackend,

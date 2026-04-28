@@ -9,7 +9,7 @@ import type {
   InventoryScope,
   InventorySnapshot,
   LeaseInfo
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import type { LeaseManager } from "./lease-manager.js";
 
 export interface DashboardSnapshotOptions {

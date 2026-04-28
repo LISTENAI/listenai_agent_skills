@@ -16,7 +16,7 @@ trap cleanup EXIT
 
 pnpm --dir "$ROOT_DIR" run verify:m007:s01
 
-pnpm --dir "$ROOT_DIR" --filter @listenai/resource-manager exec tsx src/cli.ts \
+pnpm --dir "$ROOT_DIR" --filter @listenai/eaw-resource-manager exec tsx src/cli.ts \
   --provider fake \
   --host 0.0.0.0 \
   --port "$PORT" >"$SERVER_LOG" 2>&1 &

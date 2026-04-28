@@ -5,7 +5,7 @@ import type {
   InventoryDiagnostic,
   InventorySnapshot,
   SnapshotResourceManager,
-} from "@listenai/contracts";
+} from "@listenai/eaw-contracts";
 import {
   ANALYSIS_EDGE_POLICIES,
   ANALYSIS_TIME_REFERENCES,
@@ -29,7 +29,7 @@ import {
   FakeDeviceProvider,
   createDslogicLiveCaptureRunner,
   createResourceManager,
-} from "@listenai/resource-manager";
+} from "@listenai/eaw-resource-manager";
 
 const connectedAt = "2026-03-26T00:00:00.000Z";
 const allocateAt = "2026-03-26T00:01:00.000Z";
