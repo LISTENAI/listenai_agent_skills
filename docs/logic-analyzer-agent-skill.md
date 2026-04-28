@@ -162,6 +162,20 @@ The important behavior is:
 - preserve nested diagnostics instead of replacing them with prose-only summaries;
 - explicitly end successful live sessions when the device should return to `free`.
 
+## Connected protocol-log capture and decode
+
+Use connected protocol-log mode when the user asks for a live decoded UART, I2C, SPI, or similar log from an attached DSLogic device. Resource-manager owns allocation, ready-session validation, live capture, and connected decoder execution. The host should use `HttpResourceManager` from `@listenai/eaw-resource-client`, not a direct capture command, for this path.
+
+The connected flow is:
+
+1. Start or receive a typed resource-manager session for the device.
+2. Call `resourceManager.listDecoderCapabilities({ deviceId, requestedAt, timeoutMs })` and fail closed if resource-manager is unavailable, the response is malformed, or the requested decoder such as `1:uart` is missing.
+3. Call `resourceManager.captureDecode({ session, requestedAt, timeoutMs, captureTuning, decode })`, which maps to `POST /capture/decode`.
+4. Branch on `decodeResult.ok`. On failure, preserve `diagnostics.phase`, `kind`, `message`, `session`, backend identity, artifact summary, decode summary, stream summaries, and inventory diagnostics.
+5. Write user-visible decoded `rows` or `annotations` only after the typed `ok: true` branch.
+
+Never tell an agent or operator to run `dsview-cli capture` for a connected protocol-log workflow. Direct package decode remains offline artifact-only: `inspectDsviewDecoder`, `runDsviewDecoder`, and `dsview-cli decode run` may be used only after the caller supplies an existing artifact.
+
 ## Request modes the agent should preserve
 
 ### Offline artifact mode
@@ -230,13 +244,11 @@ Do not make source commands the default user path in host-facing docs.
 
 ## Verify the package and docs
 
-After changing the skill package or this guide, run the focused checks:
+After changing the skill package or this guide, run the focused S03 checks:
 
 ```bash
-bash scripts/verify-m003-s01.sh
-pnpm --filter @listenai/eaw-skill-logic-analyzer typecheck
-pnpm --filter @listenai/eaw-skill-logic-analyzer build
-pnpm --filter @listenai/eaw-skill-logic-analyzer exec vitest run src/generic-skill.test.ts src/decoder-discovery.test.ts src/decoder-runner.test.ts
+pnpm run verify:m005:s03
+bash scripts/verify-m005-s03.sh
 ```
 
 For the broader DSLogic support story, run:

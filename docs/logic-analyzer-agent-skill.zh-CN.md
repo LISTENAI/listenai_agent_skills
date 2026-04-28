@@ -162,6 +162,20 @@ if (result.ok) {
 - 保留 nested diagnostics，不要改写成只有 prose 的错误摘要；
 - live session 成功后，如果设备应该回到 `free`，显式 end session。
 
+## Connected protocol-log capture and decode
+
+当用户要求从已连接的 DSLogic 设备获取 live decoded UART、I2C、SPI 或类似 protocol log 时，使用 connected protocol-log mode。resource-manager 负责 allocation、ready-session validation、live capture 和 connected decoder execution。host 应使用 `@listenai/eaw-resource-client` 的 `HttpResourceManager`，而不是直接的 capture command。
+
+connected flow 是：
+
+1. 为设备启动或接收一个 typed resource-manager session。
+2. 调用 `resourceManager.listDecoderCapabilities({ deviceId, requestedAt, timeoutMs })`；如果 resource-manager 不可用、response malformed，或缺少请求的 decoder（例如 `1:uart`），就 fail closed。
+3. 调用 `resourceManager.captureDecode({ session, requestedAt, timeoutMs, captureTuning, decode })`，它对应 `POST /capture/decode`。
+4. 先判断 `decodeResult.ok`。失败时保留 `diagnostics.phase`、`kind`、`message`、`session`、backend identity、artifact summary、decode summary、stream summaries 和 inventory diagnostics。
+5. 只有在 typed `ok: true` 分支之后，才写出用户可见的 decoded `rows` 或 `annotations`。
+
+connected protocol-log workflow 不应绕过 resource-manager 使用直接 capture command。direct package decode 仍然只适用于 offline artifact：只有调用方已经提供 existing artifact 后，才可以使用 `inspectDsviewDecoder`、`runDsviewDecoder` 和 `dsview-cli decode run`。
+
 ## agent 应保留的 request modes
 
 ### 离线 artifact mode
@@ -230,13 +244,11 @@ pnpm --filter @listenai/eaw-skill-logic-analyzer test
 
 ## 验证 package 和文档
 
-修改 skill package 或这份 guide 后，运行 focused checks：
+修改 skill package 或这份 guide 后，运行 S03 focused checks：
 
 ```bash
-bash scripts/verify-m003-s01.sh
-pnpm --filter @listenai/eaw-skill-logic-analyzer typecheck
-pnpm --filter @listenai/eaw-skill-logic-analyzer build
-pnpm --filter @listenai/eaw-skill-logic-analyzer exec vitest run src/generic-skill.test.ts src/decoder-discovery.test.ts src/decoder-runner.test.ts
+pnpm run verify:m005:s03
+bash scripts/verify-m005-s03.sh
 ```
 
 如果要检查更完整的 DSLogic 支持说明，运行：
