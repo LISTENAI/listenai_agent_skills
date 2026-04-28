@@ -61,24 +61,17 @@ For teams that want lockfile-pinned skill installation, add `@listenai/eaw-skill
 
 ## Quick Start: Run Resource Manager
 
-Live DSLogic capture uses `@listenai/eaw-resource-manager` as the hardware authority. After configuring the private registry, run the package binary from the registry:
+Live DSLogic capture uses `@listenai/eaw-resource-manager` as the hardware authority. Install it once as a user-level/global tool, then control the singleton daemon directly:
 
 ```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --host 127.0.0.1 --port 7600
+npm install -g @listenai/eaw-resource-manager
+
+resource-manager start --daemon --host 127.0.0.1 --port 7600
+resource-manager status --json
+resource-manager stop
 ```
 
-M003 will add managed background mode:
-
-```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --daemon --host 127.0.0.1 --port 7600
-
-npm exec --package @listenai/eaw-resource-manager -- resource-manager status --json
-npm exec --package @listenai/eaw-resource-manager -- resource-manager stop
-```
-
-Until that daemon mode ships, foreground startup remains the supported runtime path.
+The daemon is designed as a user-home global singleton shared across projects and terminal sessions. By default it stores state and logs under `~/.listenai/resource-manager/`; use `RESOURCE_MANAGER_STATE_DIR`, `RESOURCE_MANAGER_LOG_FILE`, `--state-dir`, or `--log-file` only when you intentionally need an isolated runtime.
 
 Check the running service:
 

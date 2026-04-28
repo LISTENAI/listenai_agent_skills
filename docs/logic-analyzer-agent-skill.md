@@ -194,20 +194,17 @@ Decode failures are expected to be structured:
 
 ## Live capture prerequisites
 
-For live DSLogic capture, start resource-manager first. Foreground startup is currently supported:
+For live DSLogic capture, install resource-manager once as a global user-level tool and start the managed daemon before asking an agent to capture:
 
 ```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --host 127.0.0.1 --port 7600
+npm install -g @listenai/eaw-resource-manager
+
+resource-manager start --daemon --host 127.0.0.1 --port 7600
+resource-manager status --json
+resource-manager stop
 ```
 
-M003 adds managed background mode:
-
-```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --daemon --host 127.0.0.1 --port 7600
-npm exec --package @listenai/eaw-resource-manager -- resource-manager status --json
-```
+The daemon is the machine/user-level hardware authority, not a project dependency. Its default state and log files live under `~/.listenai/resource-manager/`, and `status --json` is the supported automation surface for agents.
 
 Check runtime state before asking the agent to capture:
 

@@ -28,11 +28,12 @@ require_pattern "registry-lpm\.listenai\.com" "${ALL_DOCS[@]}"
 require_pattern "npm exec --package @listenai/eaw-skill-logic-analyzer" README.md docs/logic-analyzer-agent-skill.md packages/skill-logic-analyzer/README.md packages/skill-logic-analyzer/SKILL.md
 require_pattern "pnpm dlx --package @listenai/eaw-skill-logic-analyzer" README.md docs/logic-analyzer-agent-skill.md packages/skill-logic-analyzer/README.md packages/skill-logic-analyzer/SKILL.md
 require_pattern "yarn dlx @listenai/eaw-skill-logic-analyzer" README.md docs/logic-analyzer-agent-skill.md packages/skill-logic-analyzer/README.md packages/skill-logic-analyzer/SKILL.md
-require_pattern "npm exec --package @listenai/eaw-resource-manager" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
-require_pattern "pnpm dlx --package @listenai/eaw-resource-manager" packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
-require_pattern "yarn dlx @listenai/eaw-resource-manager" packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
-require_pattern "start --daemon" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
-require_pattern "status --json" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
+require_pattern "npm install -g @listenai/eaw-resource-manager" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
+require_pattern "resource-manager start --daemon" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
+require_pattern "resource-manager status --json" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
+require_pattern "resource-manager stop" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
+require_pattern "global singleton|全局单实例|user-home singleton|用户 home" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
+reject_pattern "npm exec --package @listenai/eaw-resource-manager|pnpm dlx --package @listenai/eaw-resource-manager|yarn dlx @listenai/eaw-resource-manager" README.md README.zh-CN.md docs/logic-analyzer-agent-skill.md docs/logic-analyzer-agent-skill.zh-CN.md packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md
 require_pattern "contributor|贡献者|source workspace|源码 workspace" "${ROOT_DOCS[@]}"
 require_pattern "listenai\.skillAssets" packages/skill-logic-analyzer/README.md packages/skill-logic-analyzer/SKILL.md
 reject_pattern 'wired to `src/cli\.ts`|指向 `src/cli\.ts`' packages/resource-manager/README.md packages/resource-manager/README.zh-CN.md

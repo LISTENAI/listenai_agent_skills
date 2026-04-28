@@ -33,22 +33,15 @@ https://registry-lpm.listenai.com
 
 Configure the `@listenai` scope in npm, pnpm, yarn, or CI before installing. Do not commit auth tokens to the repository.
 
-## Start the server from the registry
+## Install and control the global daemon
 
-The recommended user path is to run the package binary from the private registry:
+The recommended user path is a one-time global install from the private registry. `resource-manager` is a user-home singleton service for local hardware coordination, not a per-project dependency:
 
 ```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --host 127.0.0.1 --port 7600
-
-pnpm dlx --package @listenai/eaw-resource-manager \
-  resource-manager start --host 127.0.0.1 --port 7600
-
-yarn dlx @listenai/eaw-resource-manager \
-  resource-manager start --host 127.0.0.1 --port 7600
+npm install -g @listenai/eaw-resource-manager
 ```
 
-M003 adds managed background mode for agents and long-lived local workflows:
+Start, inspect, and stop the managed daemon with the global bin:
 
 ```bash
 resource-manager start --daemon --host 127.0.0.1 --port 7600
@@ -56,7 +49,7 @@ resource-manager status --json
 resource-manager stop
 ```
 
-The daemon is intended to be a user-home global singleton that can be reused across terminal sessions and projects. Until daemon mode is available in a published package, foreground startup remains the supported runtime path.
+`start --daemon` waits for `/health` before returning. `status --json` reports `running`, `stopped`, or `stale` along with pid, URL, health, state file, and log file. The default state directory is `~/.listenai/resource-manager/`; override it with `RESOURCE_MANAGER_STATE_DIR` or `--state-dir` only for intentional isolation.
 
 ## Prerequisites for contributing from source
 

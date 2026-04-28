@@ -33,22 +33,15 @@ https://registry-lpm.listenai.com
 
 安装前，请在 npm、pnpm、yarn 或 CI 环境中配置 `@listenai` scope。不要把 auth token 提交到仓库。
 
-## 从 registry 启动服务
+## 安装并控制全局 daemon
 
-推荐的使用者路径是从私有 registry 运行 package binary：
+推荐的使用者路径是从私有 registry 做一次全局安装。`resource-manager` 是用户 home 下的本地硬件协调服务，不是每个项目各自安装的依赖：
 
 ```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --host 127.0.0.1 --port 7600
-
-pnpm dlx --package @listenai/eaw-resource-manager \
-  resource-manager start --host 127.0.0.1 --port 7600
-
-yarn dlx @listenai/eaw-resource-manager \
-  resource-manager start --host 127.0.0.1 --port 7600
+npm install -g @listenai/eaw-resource-manager
 ```
 
-M003 会为 agent 和长期本地工作流增加受管理的后台模式：
+使用全局 bin 启动、查看和停止受管理的 daemon：
 
 ```bash
 resource-manager start --daemon --host 127.0.0.1 --port 7600
@@ -56,7 +49,7 @@ resource-manager status --json
 resource-manager stop
 ```
 
-这个 daemon 设计为用户 home 下的全局单实例，可以跨终端会话、跨项目复用。在 daemon mode 发布前，前台启动仍是受支持的运行路径。
+`start --daemon` 会等待 `/health` 就绪后再返回。`status --json` 会报告 `running`、`stopped` 或 `stale`，并包含 pid、URL、health、state file 和 log file。默认状态目录是 `~/.listenai/resource-manager/`；只有在明确需要隔离运行时时，才用 `RESOURCE_MANAGER_STATE_DIR` 或 `--state-dir` 覆盖。
 
 ## 从源码贡献时的前置条件
 

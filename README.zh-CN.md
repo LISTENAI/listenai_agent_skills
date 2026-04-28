@@ -61,24 +61,17 @@ npm exec --package @listenai/eaw-skill-logic-analyzer -- \
 
 ## 快速开始：运行 Resource Manager
 
-Live DSLogic capture 使用 `@listenai/eaw-resource-manager` 作为硬件权威边界。配置私有 registry 后，从 registry 运行 package binary：
+Live DSLogic capture 使用 `@listenai/eaw-resource-manager` 作为硬件权威边界。请把它安装成用户级/全局工具，然后直接控制全局单实例 daemon：
 
 ```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --host 127.0.0.1 --port 7600
+npm install -g @listenai/eaw-resource-manager
+
+resource-manager start --daemon --host 127.0.0.1 --port 7600
+resource-manager status --json
+resource-manager stop
 ```
 
-M003 会新增受管理的后台模式：
-
-```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --daemon --host 127.0.0.1 --port 7600
-
-npm exec --package @listenai/eaw-resource-manager -- resource-manager status --json
-npm exec --package @listenai/eaw-resource-manager -- resource-manager stop
-```
-
-在 daemon mode 发布前，前台启动仍是受支持的运行路径。
+这个 daemon 设计为用户 home 下的全局单实例，可跨项目、跨终端会话复用。默认状态和日志位于 `~/.listenai/resource-manager/`；只有在需要隔离运行时时，才使用 `RESOURCE_MANAGER_STATE_DIR`、`RESOURCE_MANAGER_LOG_FILE`、`--state-dir` 或 `--log-file` 覆盖。
 
 检查已运行服务：
 

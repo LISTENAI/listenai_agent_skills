@@ -194,20 +194,17 @@ Decode failure 应该保持结构化：
 
 ## Live capture 前置条件
 
-live DSLogic capture 前，先启动 resource-manager。当前支持前台启动：
+live DSLogic capture 前，请先把 resource-manager 安装为用户级/全局工具，并启动受管理的 daemon：
 
 ```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --host 127.0.0.1 --port 7600
+npm install -g @listenai/eaw-resource-manager
+
+resource-manager start --daemon --host 127.0.0.1 --port 7600
+resource-manager status --json
+resource-manager stop
 ```
 
-M003 会新增受管理的后台模式：
-
-```bash
-npm exec --package @listenai/eaw-resource-manager -- \
-  resource-manager start --daemon --host 127.0.0.1 --port 7600
-npm exec --package @listenai/eaw-resource-manager -- resource-manager status --json
-```
+这个 daemon 是机器/用户级硬件权威边界，不是项目依赖。默认状态和日志位于 `~/.listenai/resource-manager/`，`status --json` 是 agent 自动化应使用的状态面。
 
 让 agent capture 前，先检查运行时状态：
 
