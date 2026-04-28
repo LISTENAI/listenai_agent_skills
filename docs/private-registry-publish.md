@@ -97,6 +97,7 @@ Safety gates:
 - `LISTENAI_NPM_AUTH_MODE` must be `password` or `token` and defaults to `password`.
 - Password-mode `--publish` fails unless `LPM_PASSWORD_BASE64`, `LPM_USERNAME`, and `LPM_EMAIL` are set.
 - Token-mode `--publish` fails unless `LPM_ADMIN_TOKEN` is set.
+- Published package manifests include `maintainers: [{ name: "lpmadmin" }]` because the private registry rejects publishes without maintainer metadata.
 - The script runs `npm whoami` before any real publish attempt so CI logs show whether registry authentication succeeds.
 - The script checks every `package@version` is absent from the target registry before any real publish attempt.
 - Registry config is written only to a temporary npm userconfig.
