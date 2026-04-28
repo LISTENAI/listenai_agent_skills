@@ -33,6 +33,27 @@ Expected high-level output:
 
 The script first runs `scripts/verify-m003-s04.sh`, then packs the four packages in dependency order, then runs `npm publish --dry-run` against each packed tarball.
 
+## Local Auth Check
+
+Before attempting a real publish, verify registry login state without publishing:
+
+```bash
+LPM_PASSWORD_BASE64=... \
+LPM_USERNAME=... \
+LPM_EMAIL=... \
+bash scripts/check-lpm-auth.sh
+```
+
+For token auth:
+
+```bash
+LISTENAI_NPM_AUTH_MODE=token \
+LPM_ADMIN_TOKEN=... \
+bash scripts/check-lpm-auth.sh
+```
+
+The auth check writes only a temporary npm userconfig and runs `npm whoami` against the private registry.
+
 ## Local Real Publish
 
 A real publish is intentionally awkward. It requires a confirmation word plus registry credentials. The default ListenAI registry auth mode is explicit password auth:
@@ -76,6 +97,7 @@ Safety gates:
 - `LISTENAI_NPM_AUTH_MODE` must be `password` or `token` and defaults to `password`.
 - Password-mode `--publish` fails unless `LPM_PASSWORD_BASE64`, `LPM_USERNAME`, and `LPM_EMAIL` are set.
 - Token-mode `--publish` fails unless `LPM_ADMIN_TOKEN` is set.
+- The script runs `npm whoami` before any real publish attempt so CI logs show whether registry authentication succeeds.
 - The script checks every `package@version` is absent from the target registry before any real publish attempt.
 - Registry config is written only to a temporary npm userconfig.
 - The M003 consumer publish-readiness verifier runs before any package publish attempt.

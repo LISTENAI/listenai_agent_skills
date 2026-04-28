@@ -121,17 +121,27 @@ printf '@listenai:registry=%s\n' "$REGISTRY_URL" > "$NPM_USERCONFIG"
 REGISTRY_AUTH_HOST="${REGISTRY_URL#http://}"
 REGISTRY_AUTH_HOST="${REGISTRY_AUTH_HOST#https://}"
 REGISTRY_AUTH_HOST="${REGISTRY_AUTH_HOST%/}"
-if [[ -n "${LPM_PASSWORD_BASE64:-}" ]]; then
+if [[ "$AUTH_MODE" == "password" && -n "${LPM_PASSWORD_BASE64:-}" ]]; then
   printf '//%s/:_password=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_PASSWORD_BASE64" >> "$NPM_USERCONFIG"
   printf '//%s/:username=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_USERNAME" >> "$NPM_USERCONFIG"
   printf '//%s/:email=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_EMAIL" >> "$NPM_USERCONFIG"
   printf '//%s/:always-auth=true\n' "$REGISTRY_AUTH_HOST" >> "$NPM_USERCONFIG"
-elif [[ -n "${LPM_ADMIN_TOKEN:-}" ]]; then
+elif [[ "$AUTH_MODE" == "token" && -n "${LPM_ADMIN_TOKEN:-}" ]]; then
   printf '//%s/:_authToken=%s\n' "$REGISTRY_AUTH_HOST" "$LPM_ADMIN_TOKEN" >> "$NPM_USERCONFIG"
   printf '//%s/:always-auth=true\n' "$REGISTRY_AUTH_HOST" >> "$NPM_USERCONFIG"
 fi
 
 if [[ "$MODE" == "publish" ]]; then
+  echo "[publish] Verifying registry authentication with npm whoami"
+  if whoami_output="$(npm whoami --registry "$REGISTRY_URL" --userconfig "$NPM_USERCONFIG" 2>&1)"; then
+    echo "[publish] Registry authentication OK: $whoami_output"
+  else
+    status=$?
+    echo "[publish] Registry authentication failed with exit code $status" >&2
+    echo "$whoami_output" >&2
+    exit "$status"
+  fi
+
   echo "[publish] Checking registry for existing $PACKAGE_VERSION packages"
   for entry in "${PACKAGES[@]}"; do
     package_name="${entry%%:*}"

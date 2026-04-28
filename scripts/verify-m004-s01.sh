@@ -48,6 +48,11 @@ require_pattern "_authToken" "$SCRIPT"
 require_pattern "always-auth" "$SCRIPT"
 reject_pattern "LPM_ZHUOBIN_TOKEN|LPM_NPM_USERNAME|LPM_NPM_EMAIL|NPM_TOKEN" "$SCRIPT"
 reject_pattern "zbzhao|zbzhao@listenai\.com" "$SCRIPT"
+require_pattern "Verifying registry authentication with npm whoami" "$SCRIPT"
+require_pattern "npm whoami" "$SCRIPT"
+require_pattern "Registry authentication OK" "$SCRIPT"
+require_pattern 'AUTH_MODE.*password.*LPM_PASSWORD_BASE64' "$SCRIPT"
+require_pattern 'AUTH_MODE.*token.*LPM_ADMIN_TOKEN' "$SCRIPT"
 require_pattern "Checking registry for existing" "$SCRIPT"
 require_pattern "npm view" "$SCRIPT"
 require_pattern "already exists" "$SCRIPT"
@@ -59,7 +64,7 @@ require_pattern "@listenai/eaw-resource-client:share/resource-client" "$SCRIPT"
 require_pattern "@listenai/eaw-resource-manager:packages/resource-manager" "$SCRIPT"
 require_pattern "@listenai/eaw-skill-logic-analyzer:packages/skill-logic-analyzer" "$SCRIPT"
 
-if LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-no-confirm.out 2>&1; then
+if env -u LPM_PASSWORD_BASE64 -u LPM_USERNAME -u LPM_EMAIL -u LPM_ADMIN_TOKEN LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-no-confirm.out 2>&1; then
   echo "[m004-s01] --publish without confirmation unexpectedly succeeded" >&2
   exit 1
 fi
@@ -70,7 +75,7 @@ if ! rg -q "CONFIRM_PUBLISH=publish" /tmp/m004-publish-no-confirm.out; then
 fi
 rm -f /tmp/m004-publish-no-confirm.out
 
-if CONFIRM_PUBLISH=publish LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-no-password.out 2>&1; then
+if env -u LPM_PASSWORD_BASE64 -u LPM_USERNAME -u LPM_EMAIL -u LPM_ADMIN_TOKEN CONFIRM_PUBLISH=publish LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-no-password.out 2>&1; then
   echo "[m004-s01] password-mode --publish without credentials unexpectedly succeeded" >&2
   exit 1
 fi
@@ -81,7 +86,7 @@ if ! rg -q "password auth requires LPM_PASSWORD_BASE64, LPM_USERNAME, and LPM_EM
 fi
 rm -f /tmp/m004-publish-no-password.out
 
-if CONFIRM_PUBLISH=publish LISTENAI_NPM_AUTH_MODE=token LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-no-token.out 2>&1; then
+if env -u LPM_PASSWORD_BASE64 -u LPM_USERNAME -u LPM_EMAIL -u LPM_ADMIN_TOKEN CONFIRM_PUBLISH=publish LISTENAI_NPM_AUTH_MODE=token LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-no-token.out 2>&1; then
   echo "[m004-s01] token-mode --publish without token unexpectedly succeeded" >&2
   exit 1
 fi
@@ -92,7 +97,7 @@ if ! rg -q "token auth requires LPM_ADMIN_TOKEN" /tmp/m004-publish-no-token.out;
 fi
 rm -f /tmp/m004-publish-no-token.out
 
-if CONFIRM_PUBLISH=publish LISTENAI_NPM_AUTH_MODE=bad LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-bad-auth-mode.out 2>&1; then
+if env -u LPM_PASSWORD_BASE64 -u LPM_USERNAME -u LPM_EMAIL -u LPM_ADMIN_TOKEN CONFIRM_PUBLISH=publish LISTENAI_NPM_AUTH_MODE=bad LISTENAI_PUBLISH_SKIP_READINESS=1 bash "$SCRIPT" --publish >/tmp/m004-publish-bad-auth-mode.out 2>&1; then
   echo "[m004-s01] --publish with invalid auth mode unexpectedly succeeded" >&2
   exit 1
 fi
