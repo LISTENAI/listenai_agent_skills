@@ -21,7 +21,7 @@ import {
 } from "@listenai/eaw-resource-manager";
 ```
 
-这个 package 还带有一个名为 `resource-manager` 的 CLI bin。发布包中的 bin 指向编译后的 `dist/cli.js`。
+这个 package 还带有名为 `eaw-resource-manager` 的 CLI bin。发布包中的 bin 指向编译后的 `dist/cli.js`。
 
 ## 私有 registry 配置
 
@@ -35,7 +35,7 @@ https://registry-lpm.listenai.com
 
 ## 安装并控制全局 daemon
 
-推荐的使用者路径是从私有 registry 做一次全局安装。`resource-manager` 是用户 home 下的本地硬件协调服务，不是每个项目各自安装的依赖：
+推荐的使用者路径是从私有 registry 做一次全局安装。`eaw-resource-manager` 是用户 home 下的本地硬件协调服务，不是每个项目各自安装的依赖：
 
 ```bash
 npm install -g @listenai/eaw-resource-manager
@@ -44,9 +44,9 @@ npm install -g @listenai/eaw-resource-manager
 使用全局 bin 启动、查看和停止受管理的 daemon：
 
 ```bash
-resource-manager start --daemon --host 127.0.0.1 --port 7600
-resource-manager status --json
-resource-manager stop
+eaw-resource-manager start --daemon --host 127.0.0.1 --port 7600
+eaw-resource-manager status --json
+eaw-resource-manager stop
 ```
 
 `start --daemon` 会等待 `/health` 就绪后再返回。`status --json` 会报告 `running`、`stopped` 或 `stale`，并包含 pid、URL、health、state file 和 log file。默认状态目录是 `~/.listenai/resource-manager/`；只有在明确需要隔离运行时时，才用 `RESOURCE_MANAGER_STATE_DIR` 或 `--state-dir` 覆盖。
@@ -96,7 +96,7 @@ RESOURCE_MANAGER_PROVIDER=fake pnpm --filter @listenai/eaw-resource-manager exec
 
 面向 operator 的已发布路径可以概括为：
 
-1. 启动打包后的 `resource-manager` CLI。
+1. 启动打包后的 `eaw-resource-manager` CLI。
 2. 在同一台机器上打开 `http://127.0.0.1:7600/`；如果绑定地址是 `0.0.0.0`，也可以从同一局域网中的其他设备打开 `http://<machine-ip>:7600/`。
 3. 把 dashboard 与 `/dashboard-snapshot` 当作设备占用、owner identity、lease timing，以及 native runtime readiness 的权威观察面，同时保持 M010 的 DSLogic 支持结论明确：只有通过 `dsview-cli` 的 macOS 路径是 live-proven，而且该路径上只有 classic DSLogic Plus 变体会被视为 ready；Linux 与 Windows 仍然只是 readiness-modeled 的未来路径。
 4. 把 `bash scripts/verify-m010-s05.sh` 或 `pnpm run verify:m010:s05` 当作这个 operator story 的顶层验收 seam。

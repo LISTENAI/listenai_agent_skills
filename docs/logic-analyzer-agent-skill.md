@@ -213,9 +213,9 @@ For live DSLogic capture, install resource-manager once as a global user-level t
 ```bash
 npm install -g @listenai/eaw-resource-manager
 
-resource-manager start --daemon --host 127.0.0.1 --port 7600
-resource-manager status --json
-resource-manager stop
+eaw-resource-manager start --daemon --host 127.0.0.1 --port 7600
+eaw-resource-manager status --json
+eaw-resource-manager stop
 ```
 
 The daemon is the machine/user-level hardware authority, not a project dependency. Its default state and log files live under `~/.listenai/resource-manager/`, and `status --json` is the supported automation surface for agents.

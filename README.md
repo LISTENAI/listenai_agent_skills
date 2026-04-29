@@ -66,9 +66,9 @@ Live DSLogic capture uses `@listenai/eaw-resource-manager` as the hardware autho
 ```bash
 npm install -g @listenai/eaw-resource-manager
 
-resource-manager start --daemon --host 127.0.0.1 --port 7600
-resource-manager status --json
-resource-manager stop
+eaw-resource-manager start --daemon --host 127.0.0.1 --port 7600
+eaw-resource-manager status --json
+eaw-resource-manager stop
 ```
 
 The daemon is designed as a user-home global singleton shared across projects and terminal sessions. By default it stores state and logs under `~/.listenai/resource-manager/`; use `RESOURCE_MANAGER_STATE_DIR`, `RESOURCE_MANAGER_LOG_FILE`, `--state-dir`, or `--log-file` only when you intentionally need an isolated runtime.

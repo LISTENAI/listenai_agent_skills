@@ -8,7 +8,7 @@
   ],
   "type": "module",
   "bin": {
-    "resource-manager": "./dist/cli.js"
+    "eaw-resource-manager": "./dist/cli.js"
   },
   "exports": {
     ".": {

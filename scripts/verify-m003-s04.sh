@@ -7,7 +7,7 @@ PACK_DIR="$TMP_DIR/packs"
 CONSUMER_DIR="$TMP_DIR/consumer"
 DAEMON_STATE_DIR="$TMP_DIR/daemon-state"
 DAEMON_PORT=""
-trap 'if [[ -n "${DAEMON_PORT}" && -x "$CONSUMER_DIR/node_modules/.bin/resource-manager" ]]; then "$CONSUMER_DIR/node_modules/.bin/resource-manager" stop --state-dir "$DAEMON_STATE_DIR" --json >/dev/null 2>&1 || true; fi; rm -rf "$TMP_DIR"' EXIT
+trap 'if [[ -n "${DAEMON_PORT}" && -x "$CONSUMER_DIR/node_modules/.bin/eaw-resource-manager" ]]; then "$CONSUMER_DIR/node_modules/.bin/eaw-resource-manager" stop --state-dir "$DAEMON_STATE_DIR" --json >/dev/null 2>&1 || true; fi; rm -rf "$TMP_DIR"' EXIT
 
 cd "$ROOT_DIR"
 mkdir -p "$PACK_DIR" "$CONSUMER_DIR" "$DAEMON_STATE_DIR"
@@ -190,7 +190,8 @@ if (!skillText.includes("listenai.skillAssets")) throw new Error("installed SKIL
 if (!readmeText.includes("registry-lpm.listenai.com")) throw new Error("installed README missing private registry guidance");
 if (!existsSync("node_modules/.bin/listenai-logic-analyzer-install-codex")) throw new Error("missing codex installer bin");
 if (!existsSync("node_modules/.bin/listenai-logic-analyzer-install-claude")) throw new Error("missing claude installer bin");
-if (!existsSync("node_modules/.bin/resource-manager")) throw new Error("missing resource-manager bin");
+if (!existsSync("node_modules/.bin/eaw-resource-manager")) throw new Error("missing eaw-resource-manager bin");
+if (existsSync("node_modules/.bin/resource-manager")) throw new Error("unexpected legacy resource-manager bin");
 NODE
 
 echo "[m003-s04] Verifying installed skill installer bins"
@@ -204,7 +205,7 @@ test -f "$CLAUDE_TARGET/logic-analyzer/SKILL.md"
 
 echo "[m003-s04] Verifying installed resource-manager daemon lifecycle"
 DAEMON_PORT="$(node -e "const s=require('node:net').createServer(); s.listen(0,'127.0.0.1',()=>{console.log(s.address().port); s.close();});")"
-START_JSON="$(./node_modules/.bin/resource-manager start --daemon --provider fake --host 127.0.0.1 --port "$DAEMON_PORT" --state-dir "$DAEMON_STATE_DIR" --readyTimeoutMs 5000 --json)"
+START_JSON="$(./node_modules/.bin/eaw-resource-manager start --daemon --provider fake --host 127.0.0.1 --port "$DAEMON_PORT" --state-dir "$DAEMON_STATE_DIR" --readyTimeoutMs 5000 --json)"
 echo "$START_JSON"
 node --input-type=module - "$START_JSON" "$DAEMON_PORT" <<'NODE'
 const [raw, expectedPort] = process.argv.slice(2);
@@ -216,7 +217,7 @@ if (String(status.port) !== String(expectedPort)) throw new Error(`expected daem
 NODE
 
 curl -fsS "http://127.0.0.1:${DAEMON_PORT}/health" >/dev/null
-STATUS_JSON="$(./node_modules/.bin/resource-manager status --state-dir "$DAEMON_STATE_DIR" --json)"
+STATUS_JSON="$(./node_modules/.bin/eaw-resource-manager status --state-dir "$DAEMON_STATE_DIR" --json)"
 echo "$STATUS_JSON"
 node --input-type=module - "$STATUS_JSON" <<'NODE'
 const status = JSON.parse(process.argv[2]);
@@ -224,7 +225,7 @@ if (status.status !== "running") throw new Error(`expected running status, got $
 if (status.health !== "ok") throw new Error(`expected health ok, got ${status.health}`);
 NODE
 
-STOP_JSON="$(./node_modules/.bin/resource-manager stop --state-dir "$DAEMON_STATE_DIR" --json)"
+STOP_JSON="$(./node_modules/.bin/eaw-resource-manager stop --state-dir "$DAEMON_STATE_DIR" --json)"
 echo "$STOP_JSON"
 node --input-type=module - "$STOP_JSON" <<'NODE'
 const status = JSON.parse(process.argv[2]);

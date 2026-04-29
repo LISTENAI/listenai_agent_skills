@@ -21,7 +21,7 @@ import {
 } from "@listenai/eaw-resource-manager";
 ```
 
-The package also ships a CLI bin named `resource-manager`. Published packages wire the bin to compiled `dist/cli.js`.
+The package also ships a CLI bin named `eaw-resource-manager`. Published packages wire the bin to compiled `dist/cli.js`.
 
 ## Private registry setup
 
@@ -35,7 +35,7 @@ Configure the `@listenai` scope in npm, pnpm, yarn, or CI before installing. Do 
 
 ## Install and control the global daemon
 
-The recommended user path is a one-time global install from the private registry. `resource-manager` is a user-home singleton service for local hardware coordination, not a per-project dependency:
+The recommended user path is a one-time global install from the private registry. `eaw-resource-manager` is a user-home singleton service for local hardware coordination, not a per-project dependency:
 
 ```bash
 npm install -g @listenai/eaw-resource-manager
@@ -44,9 +44,9 @@ npm install -g @listenai/eaw-resource-manager
 Start, inspect, and stop the managed daemon with the global bin:
 
 ```bash
-resource-manager start --daemon --host 127.0.0.1 --port 7600
-resource-manager status --json
-resource-manager stop
+eaw-resource-manager start --daemon --host 127.0.0.1 --port 7600
+eaw-resource-manager status --json
+eaw-resource-manager stop
 ```
 
 `start --daemon` waits for `/health` before returning. `status --json` reports `running`, `stopped`, or `stale` along with pid, URL, health, state file, and log file. The default state directory is `~/.listenai/resource-manager/`; override it with `RESOURCE_MANAGER_STATE_DIR` or `--state-dir` only for intentional isolation.
@@ -97,7 +97,7 @@ When the host is `0.0.0.0`, connect from the same machine with `127.0.0.1` and f
 
 The shipped operator path is one runtime, one browser entrypoint, and one acceptance seam:
 
-1. Start the packaged `resource-manager` CLI.
+1. Start the packaged `eaw-resource-manager` CLI.
 2. Open `http://127.0.0.1:7600/` from the same machine, or `http://<machine-ip>:7600/` from another device on the same LAN when the host binding is `0.0.0.0`.
 3. Use the dashboard and `/dashboard-snapshot` as the operator truth surface for device occupancy, owner identity, lease timing, and native runtime readiness, while keeping the M010 DSLogic support claim explicit: macOS via `dsview-cli` is the only live-proven host path, and the only ready device claim on that path is the classic DSLogic Plus variant; Linux and Windows remain readiness-modeled future paths.
 4. Treat `bash scripts/verify-m010-s05.sh` or `pnpm run verify:m010:s05` as the top-level acceptance seam for this operator story.
